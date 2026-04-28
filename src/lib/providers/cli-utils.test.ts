@@ -1,7 +1,17 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { describe, it } from 'node:test'
 
-import { isStderrNoise, buildCliEnv, isCliProvider, CLI_PROVIDER_CAPABILITIES } from './cli-utils'
+import {
+  isStderrNoise,
+  buildCliEnv,
+  isCliProvider,
+  CLI_PROVIDER_CAPABILITIES,
+  resolveCodexProbeInvocation,
+  ensureCliWorkingDirectory,
+} from './cli-utils'
 
 // ---------------------------------------------------------------------------
 // isStderrNoise
@@ -130,5 +140,59 @@ describe('CLI_PROVIDER_CAPABILITIES', () => {
       assert.equal(typeof value, 'string', `${key} should be a string`)
       assert.ok(value.length > 0, `${key} should be non-empty`)
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// resolveCodexProbeInvocation
+// ---------------------------------------------------------------------------
+
+describe('resolveCodexProbeInvocation', () => {
+  it('uses node directly for codex JS wrappers discovered through a symlink', () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'swarmclaw-codex-probe-'))
+    try {
+      const realScript = path.join(tmpRoot, 'codex.js')
+      fs.writeFileSync(realScript, '#!/usr/bin/env node\nconsole.log("ok")\n')
+      fs.chmodSync(realScript, 0o755)
+
+      const wrapperPath = path.join(tmpRoot, 'codex')
+      fs.symlinkSync(realScript, wrapperPath)
+
+      const invocation = resolveCodexProbeInvocation(wrapperPath)
+      assert.equal(invocation.command, process.execPath)
+      assert.deepEqual(invocation.args, [realScript, 'login', 'status'])
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('uses the binary directly for non-JS executables', () => {
+    const invocation = resolveCodexProbeInvocation('/usr/local/bin/codex-bin')
+    assert.equal(invocation.command, '/usr/local/bin/codex-bin')
+    assert.deepEqual(invocation.args, ['login', 'status'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// ensureCliWorkingDirectory
+// ---------------------------------------------------------------------------
+
+describe('ensureCliWorkingDirectory', () => {
+  it('creates a missing working directory recursively', () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'swarmclaw-cli-cwd-'))
+    const target = path.join(tmpRoot, 'nested', 'room')
+    try {
+      assert.equal(fs.existsSync(target), false)
+      const resolved = ensureCliWorkingDirectory(target)
+      assert.equal(resolved, target)
+      assert.equal(fs.existsSync(target), true)
+      assert.equal(fs.statSync(target).isDirectory(), true)
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('falls back to process.cwd when cwd is blank', () => {
+    assert.equal(ensureCliWorkingDirectory(''), process.cwd())
   })
 })

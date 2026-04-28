@@ -10,6 +10,7 @@ import os from 'os'
 import { findBinaryOnPath } from '../server/session-tools/context'
 import path from 'path'
 import { spawnSync, type ChildProcess } from 'child_process'
+import { realpathSync } from 'fs'
 import { log } from '../server/logger'
 
 // ---------------------------------------------------------------------------
@@ -168,6 +169,25 @@ export interface AuthProbeResult {
   errorMessage?: string
 }
 
+export function resolveCodexProbeInvocation(binary: string): { command: string; args: string[] } {
+  try {
+    const resolved = realpathSync(binary)
+    if (resolved.toLowerCase().endsWith('.js')) {
+      return { command: process.execPath, args: [resolved, 'login', 'status'] }
+    }
+  } catch {
+    // Fall through to direct execution when the binary cannot be resolved.
+  }
+
+  return { command: binary, args: ['login', 'status'] }
+}
+
+export function ensureCliWorkingDirectory(cwd?: string | null): string {
+  const resolved = typeof cwd === 'string' && cwd.trim() ? cwd.trim() : process.cwd()
+  fs.mkdirSync(resolved, { recursive: true })
+  return resolved
+}
+
 /**
  * Unified auth check for supported CLI-backed providers.
  */
@@ -198,7 +218,8 @@ export function probeCliAuth(
   }
 
   if (backend === 'codex') {
-    const probe = spawnSync(binary, ['login', 'status'], {
+    const invocation = resolveCodexProbeInvocation(binary)
+    const probe = spawnSync(invocation.command, invocation.args, {
       cwd, env, encoding: 'utf-8', timeout: 8000,
     })
     const probeText = `${probe.stdout || ''}\n${probe.stderr || ''}`.toLowerCase()

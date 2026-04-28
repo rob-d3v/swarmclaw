@@ -5,7 +5,7 @@ import { spawn } from 'child_process'
 import type { StreamChatOptions } from './index'
 import { log } from '../server/logger'
 import { loadRuntimeSettings } from '@/lib/server/runtime/runtime-settings'
-import { resolveCliBinary, buildCliEnv, probeCliAuth, attachAbortHandler, symlinkConfigFiles, isStderrNoise } from './cli-utils'
+import { resolveCliBinary, buildCliEnv, probeCliAuth, attachAbortHandler, symlinkConfigFiles, isStderrNoise, ensureCliWorkingDirectory } from './cli-utils'
 import { getAgent } from '@/lib/server/agents/agent-repository'
 import { loadMcpServers } from '@/lib/server/storage'
 
@@ -62,6 +62,7 @@ export function streamCodexCliChat({ session, message, imagePath, systemPrompt, 
 
   // Build clean env — preserves user's CODEX_HOME for auth
   const env = buildCliEnv()
+  const effectiveCwd = ensureCliWorkingDirectory(session.cwd)
 
   // Pass API key if available
   if (session.apiKey) {
@@ -70,7 +71,7 @@ export function streamCodexCliChat({ session, message, imagePath, systemPrompt, 
 
   // Auth probe BEFORE creating temp CODEX_HOME — uses real config dir
   if (!session.apiKey) {
-    const auth = probeCliAuth(binary, 'codex', env, session.cwd)
+    const auth = probeCliAuth(binary, 'codex', env, effectiveCwd)
     if (!auth.authenticated) {
       log.error('codex-cli', auth.errorMessage || 'Auth failed')
       write(`data: ${JSON.stringify({ t: 'err', text: auth.errorMessage || 'Codex CLI is not authenticated.' })}\n\n`)
@@ -149,14 +150,14 @@ export function streamCodexCliChat({ session, message, imagePath, systemPrompt, 
 
   log.info('codex-cli', `Spawning: ${binary}`, {
     args: args.map(a => a.length > 100 ? a.slice(0, 100) + '...' : a),
-    cwd: session.cwd,
+    cwd: effectiveCwd,
     promptLen: prompt.length,
     hasSystemPrompt: !!systemPrompt,
     sessionCodexHome,
   })
 
   const proc = spawn(binary, args, {
-    cwd: session.cwd,
+    cwd: effectiveCwd,
     env,
     stdio: ['pipe', 'pipe', 'pipe'],
     timeout: processTimeoutMs,
