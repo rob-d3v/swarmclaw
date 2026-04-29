@@ -6,6 +6,7 @@ import { DATA_DIR } from '@/lib/server/data-dir'
 import { loadAgents, loadCredentials, loadSettings, loadCollection } from '@/lib/server/storage'
 import { dedup, errorMessage } from '@/lib/shared-utils'
 import { detectDocker } from '@/lib/server/sandbox/docker-detect'
+import { BESPOKE_CLI_PROVIDER_METADATA, GENERIC_CLI_PROVIDER_METADATA } from '@/lib/providers/cli-provider-metadata'
 
 type CheckStatus = 'pass' | 'warn' | 'fail'
 
@@ -198,15 +199,11 @@ export async function GET(req: Request) {
   } catch { /* best-effort */ }
 
   const optionalBinaries: Array<{ id: string; label: string; command: string }> = [
-    { id: 'claude-cli', label: 'Claude Code CLI', command: 'claude' },
-    { id: 'codex-cli', label: 'OpenAI Codex CLI', command: 'codex' },
-    { id: 'opencode-cli', label: 'OpenCode CLI', command: 'opencode' },
-    { id: 'gemini-cli', label: 'Gemini CLI', command: 'gemini' },
-    { id: 'copilot-cli', label: 'GitHub Copilot CLI', command: 'copilot' },
-    { id: 'droid-cli', label: 'Factory Droid CLI', command: 'droid' },
-    { id: 'cursor-cli', label: 'Cursor Agent CLI', command: 'cursor-agent' },
-    { id: 'qwen-code-cli', label: 'Qwen Code CLI', command: 'qwen' },
-    { id: 'goose', label: 'Goose CLI', command: 'goose' },
+    ...BESPOKE_CLI_PROVIDER_METADATA.map((provider) => ({
+      id: provider.id,
+      label: provider.displayName,
+      command: provider.binaryName,
+    })),
     { id: 'google-workspace-cli', label: 'Google Workspace CLI', command: 'gws' },
   ]
 
@@ -222,6 +219,19 @@ export async function GET(req: Request) {
         : `${binary.command} is not installed (optional, only needed for ${binary.label} provider).`,
     )
   }
+
+  const genericCliInstalled = GENERIC_CLI_PROVIDER_METADATA
+    .filter((provider) => commandExists(provider.binaryName))
+    .map((provider) => provider.displayName)
+  pushCheck(
+    checks,
+    'extended-cli-providers',
+    'Extended CLI provider roster',
+    genericCliInstalled.length > 0 ? 'pass' : 'warn',
+    genericCliInstalled.length > 0
+      ? `${genericCliInstalled.length} extended CLI provider(s) detected: ${genericCliInstalled.slice(0, 8).join(', ')}${genericCliInstalled.length > 8 ? ', ...' : ''}.`
+      : `${GENERIC_CLI_PROVIDER_METADATA.length} optional extended CLI provider(s) are available in SwarmClaw; install any matching CLI when you want to use it.`,
+  )
 
   const extensionSettings = (settings?.extensionSettings && typeof settings.extensionSettings === 'object')
     ? settings.extensionSettings as Record<string, Record<string, unknown>>

@@ -2,6 +2,7 @@ import { spawn } from 'child_process'
 import type { StreamChatOptions } from './index'
 import { log } from '../server/logger'
 import { loadRuntimeSettings } from '@/lib/server/runtime/runtime-settings'
+import { GENERIC_CLI_PROVIDER_METADATA } from './cli-provider-metadata'
 import { resolveCliBinary, buildCliEnv, attachAbortHandler, isStderrNoise } from './cli-utils'
 
 /**
@@ -9,37 +10,7 @@ import { resolveCliBinary, buildCliEnv, attachAbortHandler, isStderrNoise } from
  * Used by the generic CLI streamer for tools without a bespoke handler.
  */
 export const GENERIC_CLI_BINARIES: Record<string, string> = {
-  'aider-cli': 'aider',
-  'amp-cli': 'amp',
-  'augment-cli': 'augment',
-  'adal-cli': 'adal',
-  'bob-cli': 'bob',
-  'cline-cli': 'cline',
-  'codebuddy-cli': 'codebuddy',
-  'command-code-cli': 'commandcode',
-  'continue-cli': 'continue',
-  'cortex-cli': 'cortex',
-  'crush-cli': 'crush',
-  'deepagents-cli': 'deepagents',
-  'firebender-cli': 'firebender',
-  'iflow-cli': 'iflow',
-  'junie-cli': 'junie',
-  'kilo-code-cli': 'kilocode',
-  'kimi-cli': 'kimi',
-  'kode-cli': 'kode',
-  'mcpjam-cli': 'mcpjam',
-  'mistral-vibe-cli': 'vibe',
-  'mux-cli': 'mux',
-  'neovate-cli': 'neovate',
-  'openhands-cli': 'openhands',
-  'pochi-cli': 'pochi',
-  'qoder-cli': 'qoder',
-  'replit-cli': 'replit',
-  'roo-code-cli': 'roo',
-  'trae-cn-cli': 'trae-cn',
-  'warp-cli': 'warp',
-  'windsurf-cli': 'windsurf',
-  'zencoder-cli': 'zencoder',
+  ...Object.fromEntries(GENERIC_CLI_PROVIDER_METADATA.map((provider) => [provider.id, provider.binaryName])),
 }
 
 interface GenericCliOptions extends StreamChatOptions {

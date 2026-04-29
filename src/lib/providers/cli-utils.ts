@@ -12,6 +12,7 @@ import path from 'path'
 import { spawnSync, type ChildProcess } from 'child_process'
 import { realpathSync } from 'fs'
 import { log } from '../server/logger'
+import { CLI_PROVIDER_METADATA, CLI_PROVIDER_METADATA_BY_ID } from './cli-provider-metadata'
 
 // ---------------------------------------------------------------------------
 // Binary Discovery
@@ -468,50 +469,10 @@ export function symlinkConfigFiles(
 // ---------------------------------------------------------------------------
 
 /** Human-readable descriptions of what each CLI provider excels at. */
-export const CLI_PROVIDER_CAPABILITIES: Record<string, string> = {
-  'claude-cli': 'multi-file code editing, refactoring, debugging, code review',
-  'codex-cli': 'code generation, file creation, automated coding tasks',
-  'opencode-cli': 'code analysis, generation across multiple LLM backends',
-  'gemini-cli': 'code generation, analysis with Gemini models',
-  'copilot-cli': 'code generation, analysis, multi-model support via GitHub Copilot',
-  'droid-cli': 'code generation, refactoring, and automation via Factory Droid with configurable autonomy',
-  'cursor-cli': 'full-agent coding workflows, multi-file edits, project-aware code changes',
-  'qwen-code-cli': 'terminal-native coding workflows, code generation, review, and automation',
-  goose: 'agentic coding workflows with extensions, tools, and runtime-managed execution',
-  'aider-cli': 'paired-programming-style multi-file edits and git-aware code changes',
-  'amp-cli': 'agentic coding via Sourcegraph Amp',
-  'augment-cli': 'codebase-aware agentic edits via Augment',
-  'adal-cli': 'AdaL coding agent for terminal-driven workflows',
-  'bob-cli': 'IBM watsonx Code Assistant (Bob) terminal coding workflows',
-  'cline-cli': 'autonomous file-level edits and terminal automation via Cline',
-  'codebuddy-cli': 'CodeBuddy agentic coding workflows',
-  'command-code-cli': 'Command Code terminal-native coding agent',
-  'continue-cli': 'agentic coding via the Continue CLI',
-  'cortex-cli': 'Snowflake Cortex Code agentic workflows',
-  'crush-cli': 'Crush terminal coding agent',
-  'deepagents-cli': 'long-horizon planning and multi-step coding via Deep Agents',
-  'firebender-cli': 'Firebender JetBrains-aligned coding agent',
-  'iflow-cli': 'iFlow CLI agentic coding workflows',
-  'junie-cli': 'JetBrains Junie coding agent for terminal use',
-  'kilo-code-cli': 'Kilo Code agentic coding workflows',
-  'kimi-cli': 'Kimi Code CLI coding agent',
-  'kode-cli': 'Kode terminal coding agent',
-  'mcpjam-cli': 'MCPJam-tooled agentic coding workflows',
-  'mistral-vibe-cli': 'Mistral Vibe coding agent',
-  'mux-cli': 'Mux multi-tool coding agent',
-  'neovate-cli': 'Neovate coding agent for terminal workflows',
-  'openhands-cli': 'OpenHands agentic coding via terminal',
-  'pochi-cli': 'Pochi coding agent',
-  'qoder-cli': 'Qoder agentic coding workflows',
-  'replit-cli': 'Replit Agent terminal coding workflows',
-  'roo-code-cli': 'Roo Code agentic coding workflows',
-  'trae-cn-cli': 'TRAE CN coding agent',
-  'warp-cli': 'Warp Agent terminal-native coding workflows',
-  'windsurf-cli': 'Windsurf agentic coding workflows',
-  'zencoder-cli': 'Zencoder agentic coding workflows',
-}
+export const CLI_PROVIDER_CAPABILITIES: Record<string, string> =
+  Object.fromEntries(CLI_PROVIDER_METADATA.map((provider) => [provider.id, provider.capability]))
 
 /** Check if a provider ID is a CLI-based provider. */
 export function isCliProvider(providerId: string): boolean {
-  return providerId in CLI_PROVIDER_CAPABILITIES
+  return providerId in CLI_PROVIDER_METADATA_BY_ID
 }

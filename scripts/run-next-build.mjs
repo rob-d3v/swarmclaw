@@ -11,7 +11,7 @@ import { ensureBuildBootstrapPaths } from './build-bootstrap-env.mjs'
 
 const require = createRequire(import.meta.url)
 
-export const DEFAULT_MAX_OLD_SPACE_SIZE_MB = '8192'
+export const DEFAULT_MAX_OLD_SPACE_SIZE_MB = '12288'
 export const MIN_MAX_OLD_SPACE_SIZE_MB = 1024
 export const FALLBACK_MIN_MAX_OLD_SPACE_SIZE_MB = 512
 export const RESERVED_BUILD_MEMORY_MB = 768

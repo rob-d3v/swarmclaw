@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { CLI_PROVIDER_METADATA } from './providers/cli-provider-metadata'
 import { DEFAULT_AGENTS, getDefaultModelForProvider } from './setup-defaults'
 
 // ---------------------------------------------------------------------------
@@ -46,6 +47,13 @@ test('getDefaultModelForProvider returns expected defaults for cursor, qwen, and
   assert.equal(getDefaultModelForProvider('cursor-cli'), 'auto')
   assert.equal(getDefaultModelForProvider('qwen-code-cli'), 'default')
   assert.equal(getDefaultModelForProvider('goose'), 'default')
+})
+
+test('every CLI provider has setup default agent coverage', () => {
+  for (const provider of CLI_PROVIDER_METADATA) {
+    assert.equal(getDefaultModelForProvider(provider.id), provider.defaultModel)
+    assert.ok(DEFAULT_AGENTS[provider.id].description.includes(provider.displayName))
+  }
 })
 
 test('getDefaultModelForProvider returns non-empty for ollama', () => {

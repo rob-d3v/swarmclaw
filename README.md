@@ -399,6 +399,16 @@ Operational docs: https://swarmclaw.ai/docs/observability
 
 ## Releases
 
+### v1.7.2 Highlights
+
+CLI provider usability follow-up for v1.7.0/v1.7.1. The expanded coding-agent roster is now easier to find, configure, and validate from onboarding and setup diagnostics.
+
+- **Shared CLI provider registry.** Bespoke and generic CLI providers now share one metadata source for display names, binary names, capabilities, setup defaults, and provider-set behavior, reducing drift across onboarding, runtime routing, setup doctor, and capability prompts.
+- **Onboarding exposes the full CLI roster.** The setup wizard groups providers by CLI agents, gateways/local runtimes, API providers, and custom endpoints, with search so the 31 extended CLI providers added in v1.7 are usable without digging through settings.
+- **Connection checks for every CLI provider.** Bespoke CLIs keep auth-aware checks, while generic CLIs verify that the expected binary is on PATH and return actionable install guidance when missing.
+- **Update banner polish.** Source installs now show the target stable tag/version, remember dismissal per release target, and make the required restart after update explicit.
+- **macOS desktop note.** macOS builds remain ad-hoc signed and not notarized in this release, so the existing Gatekeeper/quarantine workaround still applies until Developer ID signing is available.
+
 ### v1.7.1 Highlights
 
 Republish of v1.7.0 from the correct commit. The v1.7.0 tarball on npm was inadvertently published from a pre-rebase tree that did not include the v1.6.1 codex continuity fixes (PR #62) or the v1.6.2 plan doc. v1.7.1 ships the same coding-agent-roster expansion on top of the correct v1.6.1+ history.

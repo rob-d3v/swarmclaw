@@ -1,22 +1,49 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { safeStorageGet, safeStorageSet } from '@/lib/app/safe-storage'
 
 const CHECK_INTERVAL = 5 * 60_000 // 5 minutes
+const DISMISSED_UPDATE_KEY = 'sc_update_banner_dismissed_target'
 
 type VersionInfo = {
-  localSha: string
-  remoteSha: string
+  source: 'git' | 'package'
+  version: string
+  localSha: string | null
+  localTag: string | null
+  remoteSha: string | null
+  remoteTag: string | null
+  channel: 'stable' | 'main'
   updateAvailable: boolean
   behindBy: number
 }
 
+type UpdateResponse = {
+  success: boolean
+  newSha?: string
+  targetTag?: string | null
+  channel?: 'stable' | 'main'
+  needsRestart?: boolean
+  error?: string
+}
+
 type UpdateState = 'idle' | 'updating' | 'done' | 'error'
+
+function updateTargetKey(version: VersionInfo): string {
+  return version.remoteTag || version.remoteSha || `${version.channel}:${version.behindBy}`
+}
+
+function updateTargetLabel(version: VersionInfo): string {
+  if (version.remoteTag) return version.remoteTag
+  if (version.remoteSha) return `${version.channel === 'stable' ? 'stable release' : 'main'} ${version.remoteSha}`
+  return 'latest release'
+}
 
 export function UpdateBanner() {
   const [version, setVersion] = useState<VersionInfo | null>(null)
   const [updateState, setUpdateState] = useState<UpdateState>('idle')
-  const [dismissed, setDismissed] = useState<string | null>(null)
+  const [dismissed, setDismissed] = useState<string | null>(() => safeStorageGet(DISMISSED_UPDATE_KEY))
+  const [appliedTarget, setAppliedTarget] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
@@ -36,8 +63,9 @@ export function UpdateBanner() {
     setErrorMsg('')
     try {
       const res = await fetch('/api/version/update', { method: 'POST' })
-      const data = await res.json()
+      const data = await res.json() as UpdateResponse
       if (data.success) {
+        setAppliedTarget(data.targetTag || data.newSha || (version ? updateTargetLabel(version) : null))
         setUpdateState('done')
       } else {
         setUpdateState('error')
@@ -50,12 +78,17 @@ export function UpdateBanner() {
   }
 
   const handleDismiss = () => {
-    if (version) setDismissed(version.remoteSha)
+    if (!version) return
+    const target = updateTargetKey(version)
+    setDismissed(target)
+    safeStorageSet(DISMISSED_UPDATE_KEY, target)
   }
 
   // Don't show if no update, or user dismissed this specific remote SHA
   if (!version?.updateAvailable) return null
-  if (dismissed === version.remoteSha && updateState === 'idle') return null
+  if (dismissed === updateTargetKey(version) && updateState === 'idle') return null
+
+  const targetLabel = updateTargetLabel(version)
 
   return (
     <div className="px-4 py-1.5 border-b border-white/[0.04] text-[10px] flex items-center gap-2 shrink-0 bg-accent-bright/[0.04]">
@@ -65,7 +98,8 @@ export function UpdateBanner() {
             <path d="M12 19V5M5 12l7-7 7 7" />
           </svg>
           <span className="text-text-3 flex-1 min-w-0 truncate">
-            <span className="text-accent-bright font-600">{version.behindBy}</span> update{version.behindBy !== 1 ? 's' : ''} available
+            <span className="text-accent-bright font-600">{targetLabel}</span> available
+            {version.behindBy > 0 ? ` - ${version.behindBy} commit${version.behindBy === 1 ? '' : 's'} ahead` : ''}
           </span>
           <button
             onClick={handleUpdate}
@@ -90,7 +124,7 @@ export function UpdateBanner() {
         <>
           <span className="w-3 h-3 border-[1.5px] border-accent-bright/30 border-t-accent-bright rounded-full shrink-0"
             style={{ animation: 'spin 0.8s linear infinite' }} />
-          <span className="text-text-3">Updating...</span>
+          <span className="text-text-3">Updating to {targetLabel}...</span>
         </>
       )}
 
@@ -99,7 +133,7 @@ export function UpdateBanner() {
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-success shrink-0">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          <span className="text-text-3 flex-1">Updated! Restart to apply.</span>
+          <span className="text-text-3 flex-1">Updated{appliedTarget ? ` to ${appliedTarget}` : ''}. Restart SwarmClaw to apply.</span>
         </>
       )}
 

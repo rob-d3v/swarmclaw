@@ -2,6 +2,7 @@ import { spawnSync } from 'child_process'
 import { errorMessage, hmrSingleton, jitteredBackoff } from '@/lib/shared-utils'
 import { upsertStoredItem, loadCollection } from './storage'
 import { log } from './logger'
+import { isCliProviderId } from '@/lib/providers/cli-provider-metadata'
 
 const TAG = 'provider-health'
 
@@ -352,9 +353,8 @@ export async function pingProvider(
   apiKey: string | undefined,
   endpoint: string | undefined,
 ): Promise<{ ok: boolean; message: string }> {
-  const CLI_PROVIDERS = ['claude-cli', 'codex-cli', 'opencode-cli', 'gemini-cli', 'copilot-cli', 'droid-cli', 'cursor-cli', 'qwen-code-cli', 'goose']
   const OPTIONAL_OPENAI_COMPATIBLE_KEY_PROVIDERS = new Set(['hermes'])
-  if (CLI_PROVIDERS.includes(provider)) return { ok: true, message: 'CLI provider — skipped.' }
+  if (isCliProviderId(provider)) return { ok: true, message: 'CLI provider - skipped.' }
 
   try {
     if (provider === 'anthropic') {

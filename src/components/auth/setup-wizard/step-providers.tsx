@@ -18,6 +18,7 @@ export function StepProviders({
   onContinue,
   onSkip,
 }: StepProvidersProps) {
+  const [providerSearch, setProviderSearch] = useState('')
   const [doctorState, setDoctorState] = useState<'idle' | 'checking' | 'done' | 'error'>('idle')
   const [doctorError, setDoctorError] = useState('')
   const [doctorReport, setDoctorReport] = useState<SetupDoctorResponse | null>(null)
@@ -36,6 +37,23 @@ export function StepProviders({
     }
   }
 
+  const normalizedSearch = providerSearch.trim().toLowerCase()
+  const visibleProviders = SETUP_PROVIDERS.filter((candidate) => {
+    if (!normalizedSearch) return true
+    return [
+      candidate.name,
+      candidate.description,
+      candidate.badge || '',
+      candidate.id,
+    ].some((part) => part.toLowerCase().includes(normalizedSearch))
+  })
+  const providerGroups = [
+    { id: 'cli', label: 'CLI Agents', items: visibleProviders.filter((candidate) => candidate.category === 'cli') },
+    { id: 'gateway', label: 'Gateways and Local Runtimes', items: visibleProviders.filter((candidate) => candidate.category === 'gateway' || candidate.category === 'local') },
+    { id: 'api', label: 'API Providers', items: visibleProviders.filter((candidate) => !candidate.category || candidate.category === 'api') },
+    { id: 'custom', label: 'Custom', items: visibleProviders.filter((candidate) => candidate.category === 'custom') },
+  ].filter((group) => group.items.length > 0)
+
   return (
     <StepShell>
       <h1 className="font-display text-[36px] font-800 leading-[1.05] tracking-[-0.04em] mb-3">
@@ -50,51 +68,72 @@ export function StepProviders({
 
       <ConfiguredProviderChips providers={configuredProviders} onRemove={onRemoveProvider} />
 
+      <input
+        type="search"
+        value={providerSearch}
+        onChange={(e) => setProviderSearch(e.target.value)}
+        placeholder="Search providers, CLIs, or runtimes..."
+        className="w-full px-4 py-3 rounded-[12px] border border-white/[0.08] bg-surface text-text text-[13px]
+          outline-none transition-all duration-200 placeholder:text-text-3/50 focus:border-accent-bright/30 mb-4"
+      />
+
       <div className="flex flex-col gap-3 max-h-[42vh] overflow-y-auto pr-1">
-        {SETUP_PROVIDERS.map((candidate) => {
-          const isConfigured = configuredProviderIds.has(candidate.id)
-          return (
-            <button
-              key={candidate.id}
-              onClick={() => onSelectProvider(candidate.id)}
-              className={`w-full px-5 py-4 rounded-[14px] border bg-surface text-left
-                transition-all duration-200 flex items-start gap-4 cursor-pointer
-                ${isConfigured
-                  ? 'border-emerald-500/25 hover:border-emerald-500/40 hover:bg-surface-hover'
-                  : 'border-white/[0.08] hover:border-accent-bright/30 hover:bg-surface-hover'
-                }`}
-            >
-              <div className={`w-10 h-10 rounded-[10px] border flex items-center justify-center shrink-0 mt-0.5 ${
-                isConfigured ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-white/[0.04] border-white/[0.06]'
-              }`}>
-                <span className={`text-[16px] font-display font-700 ${isConfigured ? 'text-emerald-400' : 'text-accent-bright'}`}>
-                  {candidate.icon}
-                </span>
-              </div>
-              <div className="flex-1">
-                <div className="text-[15px] font-display font-600 text-text mb-1">
-                  {candidate.name}
-                  {isConfigured ? (
-                    <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 text-[10px] uppercase tracking-[0.08em] font-600">
-                      Connected · Edit
+        {providerGroups.map((group) => (
+          <div key={group.id} className="space-y-2">
+            <div className="px-1 text-[10px] font-700 uppercase tracking-[0.1em] text-text-3/70">
+              {group.label}
+            </div>
+            {group.items.map((candidate) => {
+              const isConfigured = configuredProviderIds.has(candidate.id)
+              return (
+                <button
+                  key={candidate.id}
+                  onClick={() => onSelectProvider(candidate.id)}
+                  className={`w-full px-5 py-4 rounded-[14px] border bg-surface text-left
+                    transition-all duration-200 flex items-start gap-4 cursor-pointer
+                    ${isConfigured
+                      ? 'border-emerald-500/25 hover:border-emerald-500/40 hover:bg-surface-hover'
+                      : 'border-white/[0.08] hover:border-accent-bright/30 hover:bg-surface-hover'
+                    }`}
+                >
+                  <div className={`w-10 h-10 rounded-[10px] border flex items-center justify-center shrink-0 mt-0.5 ${
+                    isConfigured ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-white/[0.04] border-white/[0.06]'
+                  }`}>
+                    <span className={`text-[16px] font-display font-700 ${isConfigured ? 'text-emerald-400' : 'text-accent-bright'}`}>
+                      {candidate.icon}
                     </span>
-                  ) : candidate.badge ? (
-                    <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent-bright/15 text-accent-bright text-[10px] uppercase tracking-[0.08em] font-600">
-                      {candidate.badge}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="text-[13px] text-text-3 leading-relaxed">{candidate.description}</div>
-                {!candidate.requiresKey && !isConfigured && (
-                  <div className="mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-[11px] font-500">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    No API key required
                   </div>
-                )}
-              </div>
-            </button>
-          )
-        })}
+                  <div className="flex-1">
+                    <div className="text-[15px] font-display font-600 text-text mb-1">
+                      {candidate.name}
+                      {isConfigured ? (
+                        <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 text-[10px] uppercase tracking-[0.08em] font-600">
+                          Connected · Edit
+                        </span>
+                      ) : candidate.badge ? (
+                        <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent-bright/15 text-accent-bright text-[10px] uppercase tracking-[0.08em] font-600">
+                          {candidate.badge}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="text-[13px] text-text-3 leading-relaxed">{candidate.description}</div>
+                    {!candidate.requiresKey && !isConfigured && (
+                      <div className="mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-[11px] font-500">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        No API key required
+                      </div>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        ))}
+        {providerGroups.length === 0 && (
+          <div className="px-5 py-6 rounded-[14px] border border-white/[0.08] bg-surface text-center text-[13px] text-text-3">
+            No providers match that search.
+          </div>
+        )}
       </div>
 
       <div className="mt-4 text-left">

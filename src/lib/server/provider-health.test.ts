@@ -179,4 +179,10 @@ describe('provider-health', () => {
       globalThis.fetch = originalFetch
     }
   })
+
+  it('skips extended CLI providers instead of treating them as HTTP providers', async () => {
+    const result = await providerHealth.pingProvider('aider-cli', undefined, undefined)
+    assert.equal(result.ok, true)
+    assert.equal(result.message, 'CLI provider - skipped.')
+  })
 })
