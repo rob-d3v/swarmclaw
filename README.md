@@ -399,6 +399,16 @@ Operational docs: https://swarmclaw.ai/docs/observability
 
 ## Releases
 
+### v1.8.0 Highlights
+
+Mission Command release: a bigger operator update that makes autonomous missions easier to launch, inspect, and share.
+
+- **Mission Command launchpad.** The home launchpad now opens concrete mission starters for Release QA, Launch Sprint, Cost Audit, and Connector Smoke Test instead of dropping users into a generic mission list.
+- **Deep-linked mission templates.** `/missions?template=<id>` opens the right starter template directly, and the template installer can create a mission-driver chat when no sessions exist yet.
+- **Quality Center handoffs.** `/quality?tab=evals|approvals|runs` is shareable, and the Quality overview/Eval Lab can start a Release QA mission from current operator evidence.
+- **Public mission reports.** Missions can mint, copy, and revoke public share links from the detail view. Shared pages render status, budgets, milestones, and generated reports using the existing allowlisted share resolver.
+- **Safer share payloads.** Mission milestones now expose `summary` correctly in public HTML and raw markdown shares, with regression coverage in `npm run test:runtime`.
+
 ### v1.7.3 Highlights
 
 Desktop packaging fix for Linux AppImage and deb builds.

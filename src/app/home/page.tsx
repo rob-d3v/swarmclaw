@@ -266,6 +266,10 @@ export default function HomePage() {
     router.push(DEFAULT_BUILDER_ROUTE)
   }
 
+  const openMissionTemplate = (templateId: string) => {
+    router.push(`/missions?template=${encodeURIComponent(templateId)}`)
+  }
+
   if (homeMode === 'launchpad') {
     return (
       <MainContent>
@@ -286,7 +290,10 @@ export default function HomePage() {
             onRunEvalSuite={() => navigateTo('quality')}
             onReviewApprovals={() => navigateTo('quality')}
             onInspectFailedRuns={() => navigateTo('quality')}
-            onStartReleaseQaMission={() => navigateTo('missions')}
+            onStartReleaseQaMission={() => openMissionTemplate('release-candidate-qa')}
+            onStartLaunchSprintMission={() => openMissionTemplate('launch-week-growth-sprint')}
+            onStartCostAuditMission={() => openMissionTemplate('agent-cost-audit')}
+            onStartConnectorSmokeMission={() => openMissionTemplate('connector-smoke-test')}
           />
         </div>
       </MainContent>

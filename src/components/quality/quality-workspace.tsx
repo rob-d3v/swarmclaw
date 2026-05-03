@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { MainContent } from '@/components/layout/main-content'
 import { RunList } from '@/components/runs/run-list'
@@ -104,6 +105,8 @@ function EmptyState({ title, description }: { title: string; description: string
 }
 
 export function QualityWorkspace() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const agents = useAppStore((s) => s.agents)
   const agentOptions = useMemo(
     () => Object.values(agents).filter((agent) => !agent.trashedAt),
@@ -124,6 +127,20 @@ export function QualityWorkspace() {
   const [selectedScenarioId, setSelectedScenarioId] = useState('')
   const [evalBusy, setEvalBusy] = useState<string | null>(null)
   const [approvalBusy, setApprovalBusy] = useState<string | null>(null)
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') as QualityTab | null
+    if (tab && TABS.some((item) => item.id === tab)) setActiveTab(tab)
+  }, [searchParams])
+
+  const selectTab = useCallback((tab: QualityTab) => {
+    setActiveTab(tab)
+    router.replace(`/quality?tab=${tab}`, { scroll: false })
+  }, [router])
+
+  const openMissionTemplate = useCallback((templateId: string) => {
+    router.push(`/missions?template=${encodeURIComponent(templateId)}`)
+  }, [router])
 
   const loadQualityData = useCallback(async (opts: { silent?: boolean } = {}) => {
     if (opts.silent) setRefreshing(true)
@@ -278,7 +295,7 @@ export function QualityWorkspace() {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => selectTab(tab.id)}
                 className={cn(
                   'min-w-fit rounded-[9px] px-3 py-2 text-[12px] font-700 transition-colors',
                   activeTab === tab.id
@@ -328,9 +345,10 @@ export function QualityWorkspace() {
                       <p className="mt-1 text-[12px] text-text-3/65">Shortest path to unblock operator review.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <button onClick={() => setActiveTab('evals')} className="rounded-[9px] border border-white/[0.08] px-2.5 py-1.5 text-[11px] font-700 text-text-2 hover:bg-white/[0.05]">Eval Lab</button>
-                      <button onClick={() => setActiveTab('approvals')} className="rounded-[9px] border border-white/[0.08] px-2.5 py-1.5 text-[11px] font-700 text-text-2 hover:bg-white/[0.05]">Approvals</button>
-                      <button onClick={() => setActiveTab('runs')} className="rounded-[9px] border border-white/[0.08] px-2.5 py-1.5 text-[11px] font-700 text-text-2 hover:bg-white/[0.05]">Runs</button>
+                      <button onClick={() => openMissionTemplate('release-candidate-qa')} className="rounded-[9px] border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-700 text-emerald-200 hover:bg-emerald-500/15">Start QA Mission</button>
+                      <button onClick={() => selectTab('evals')} className="rounded-[9px] border border-white/[0.08] px-2.5 py-1.5 text-[11px] font-700 text-text-2 hover:bg-white/[0.05]">Eval Lab</button>
+                      <button onClick={() => selectTab('approvals')} className="rounded-[9px] border border-white/[0.08] px-2.5 py-1.5 text-[11px] font-700 text-text-2 hover:bg-white/[0.05]">Approvals</button>
+                      <button onClick={() => selectTab('runs')} className="rounded-[9px] border border-white/[0.08] px-2.5 py-1.5 text-[11px] font-700 text-text-2 hover:bg-white/[0.05]">Runs</button>
                     </div>
                   </div>
                   {runHealth.recentFailures.length === 0 && approvalGroups.totalPending === 0 && evalSummary.failedRuns === 0 ? (
@@ -340,7 +358,7 @@ export function QualityWorkspace() {
                       {runHealth.recentFailures.slice(0, 4).map((run) => (
                         <button
                           key={run.id}
-                          onClick={() => setActiveTab('runs')}
+                          onClick={() => selectTab('runs')}
                           className="rounded-[12px] border border-rose-500/20 bg-rose-500/[0.04] px-3 py-3 text-left transition-colors hover:bg-rose-500/[0.07]"
                         >
                           <div className="text-[11px] font-700 uppercase tracking-[0.1em] text-rose-300">Failed Run</div>
@@ -351,7 +369,7 @@ export function QualityWorkspace() {
                       {approvalGroups.categories.slice(0, 4).map((group) => (
                         <button
                           key={group.category}
-                          onClick={() => setActiveTab('approvals')}
+                          onClick={() => selectTab('approvals')}
                           className="rounded-[12px] border border-amber-500/20 bg-amber-500/[0.04] px-3 py-3 text-left transition-colors hover:bg-amber-500/[0.07]"
                         >
                           <div className="text-[11px] font-700 uppercase tracking-[0.1em] text-amber-300">Approval</div>
@@ -435,6 +453,13 @@ export function QualityWorkspace() {
                       </div>
                     </div>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => openMissionTemplate('release-candidate-qa')}
+                    className="mt-3 w-full rounded-[10px] border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-[12px] font-800 text-emerald-200 transition-colors hover:bg-emerald-500/15"
+                  >
+                    Start Release QA Mission
+                  </button>
                   <button
                     type="button"
                     disabled={!selectedAgentId || !selectedScenarioId || !!evalBusy}

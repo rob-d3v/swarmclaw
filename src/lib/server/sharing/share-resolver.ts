@@ -10,8 +10,25 @@ export interface SharedMissionPayload {
   successCriteria: string[]
   status: string
   createdAt: number
-  milestones: Array<{ at: number; note: string; kind: string }>
-  reports: Array<{ at: number; format: string; content: string }>
+  updatedAt: number | null
+  usage: {
+    usdSpent: number
+    tokensUsed: number
+    toolCallsUsed: number
+    turnsRun: number
+    wallclockMsElapsed: number
+    startedAt: number | null
+  }
+  budget: {
+    maxUsd: number | null
+    maxTokens: number | null
+    maxToolCalls: number | null
+    maxWallclockSec: number | null
+    maxTurns: number | null
+  }
+  milestones: Array<{ at: number; summary: string; kind: string; evidence: string[] }>
+  reports: Array<{ id: string; at: number; title: string; format: string; content: string }>
+  latestReport: { id: string; at: number; title: string; format: string; content: string } | null
 }
 
 export interface SharedSkillPayload {
@@ -56,6 +73,8 @@ export function resolveSharedEntity(link: ShareLink): SharedPayload | null {
 function resolveMission(id: string): SharedMissionPayload | null {
   const raw = loadStoredItem('agent_missions', id) as Record<string, unknown> | null
   if (!raw) return null
+  const usageRaw = (raw.usage || {}) as Record<string, unknown>
+  const budgetRaw = (raw.budget || {}) as Record<string, unknown>
   const milestonesRaw = Array.isArray(raw.milestones) ? raw.milestones : []
   const milestones = milestonesRaw
     .slice(-MAX_MILESTONES)
@@ -63,8 +82,15 @@ function resolveMission(id: string): SharedMissionPayload | null {
       const entry = (m || {}) as Record<string, unknown>
       return {
         at: typeof entry.at === 'number' ? entry.at : 0,
-        note: typeof entry.note === 'string' ? entry.note : '',
+        summary: typeof entry.summary === 'string'
+          ? entry.summary
+          : typeof entry.note === 'string'
+            ? entry.note
+            : '',
         kind: typeof entry.kind === 'string' ? entry.kind : 'note',
+        evidence: Array.isArray(entry.evidence)
+          ? entry.evidence.filter((x): x is string => typeof x === 'string')
+          : [],
       }
     })
 
@@ -72,7 +98,9 @@ function resolveMission(id: string): SharedMissionPayload | null {
   try {
     const rows = listMissionReports(id, MAX_REPORTS)
     reports = rows.map((r) => ({
+      id: r.id,
       at: r.generatedAt,
+      title: r.title,
       format: String(r.format),
       content: r.body,
     }))
@@ -90,8 +118,25 @@ function resolveMission(id: string): SharedMissionPayload | null {
       : [],
     status: typeof raw.status === 'string' ? raw.status : 'unknown',
     createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : 0,
+    updatedAt: typeof raw.updatedAt === 'number' ? raw.updatedAt : null,
+    usage: {
+      usdSpent: typeof usageRaw.usdSpent === 'number' ? usageRaw.usdSpent : 0,
+      tokensUsed: typeof usageRaw.tokensUsed === 'number' ? usageRaw.tokensUsed : 0,
+      toolCallsUsed: typeof usageRaw.toolCallsUsed === 'number' ? usageRaw.toolCallsUsed : 0,
+      turnsRun: typeof usageRaw.turnsRun === 'number' ? usageRaw.turnsRun : 0,
+      wallclockMsElapsed: typeof usageRaw.wallclockMsElapsed === 'number' ? usageRaw.wallclockMsElapsed : 0,
+      startedAt: typeof usageRaw.startedAt === 'number' ? usageRaw.startedAt : null,
+    },
+    budget: {
+      maxUsd: typeof budgetRaw.maxUsd === 'number' ? budgetRaw.maxUsd : null,
+      maxTokens: typeof budgetRaw.maxTokens === 'number' ? budgetRaw.maxTokens : null,
+      maxToolCalls: typeof budgetRaw.maxToolCalls === 'number' ? budgetRaw.maxToolCalls : null,
+      maxWallclockSec: typeof budgetRaw.maxWallclockSec === 'number' ? budgetRaw.maxWallclockSec : null,
+      maxTurns: typeof budgetRaw.maxTurns === 'number' ? budgetRaw.maxTurns : null,
+    },
     milestones,
     reports,
+    latestReport: reports[0] ?? null,
   }
 }
 

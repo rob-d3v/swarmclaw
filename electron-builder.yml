@@ -12,6 +12,7 @@ extraMetadata:
 afterPack: ./scripts/electron-after-pack.cjs
 
 asar: true
+npmRebuild: false
 
 files:
   - electron-dist/**/*

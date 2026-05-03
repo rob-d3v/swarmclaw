@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/app/api-client'
 import { MainContent } from '@/components/layout/main-content'
 import { HintTip } from '@/components/shared/hint-tip'
@@ -15,6 +16,18 @@ import type { Mission, MissionReport, MissionEvent, MissionTemplate, Session } f
 import { toast } from 'sonner'
 
 const POLL_MS = 4_000
+const RELEASE_QA_TEMPLATE_ID = 'release-candidate-qa'
+
+interface ShareLink {
+  id: string
+  token: string
+  entityType: 'mission' | 'skill' | 'session'
+  entityId: string
+  label: string | null
+  createdAt: number
+  expiresAt: number | null
+  revokedAt: number | null
+}
 
 const STATUS_BADGE: Record<Mission['status'], { label: string; cls: string }> = {
   draft: { label: 'Draft', cls: 'bg-white/[0.05] text-text-3' },
@@ -398,7 +411,71 @@ interface DetailProps {
 
 function MissionDetail({ mission, reports, events, busy, onAction, onForceReport, onEdit }: DetailProps) {
   const [selectedReport, setSelectedReport] = useState<MissionReport | null>(null)
+  const [shareLinks, setShareLinks] = useState<ShareLink[]>([])
+  const [shareBusy, setShareBusy] = useState<string | null>(null)
   const wallclockCapMs = mission.budget.maxWallclockSec != null ? mission.budget.maxWallclockSec * 1000 : null
+  const activeShare = useMemo(
+    () => shareLinks.find((link) => !link.revokedAt && (!link.expiresAt || link.expiresAt > Date.now())) ?? null,
+    [shareLinks],
+  )
+
+  const loadShareLinks = useCallback(async () => {
+    try {
+      const links = await api<ShareLink[]>('GET', `/share?entityType=mission&entityId=${encodeURIComponent(mission.id)}`)
+      setShareLinks(Array.isArray(links) ? links : [])
+    } catch {
+      setShareLinks([])
+    }
+  }, [mission.id])
+
+  useEffect(() => {
+    void loadShareLinks()
+  }, [loadShareLinks])
+
+  const shareUrl = activeShare && typeof window !== 'undefined'
+    ? `${window.location.origin}/s/${activeShare.token}`
+    : ''
+
+  const createShareLink = useCallback(async () => {
+    setShareBusy('create')
+    try {
+      const link = await api<ShareLink>('POST', '/share', {
+        entityType: 'mission',
+        entityId: mission.id,
+        label: `${mission.title} public report`,
+      })
+      setShareLinks((prev) => [link, ...prev])
+      toast.success('Mission share link created')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to create share link')
+    } finally {
+      setShareBusy(null)
+    }
+  }, [mission.id, mission.title])
+
+  const revokeShareLink = useCallback(async () => {
+    if (!activeShare) return
+    setShareBusy(activeShare.id)
+    try {
+      const revoked = await api<ShareLink>('DELETE', `/share/${activeShare.id}`)
+      setShareLinks((prev) => prev.map((link) => (link.id === revoked.id ? revoked : link)))
+      toast.success('Mission share link revoked')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to revoke share link')
+    } finally {
+      setShareBusy(null)
+    }
+  }, [activeShare])
+
+  const copyShareUrl = useCallback(async () => {
+    if (!shareUrl) return
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      toast.success('Share URL copied')
+    } catch {
+      toast.error('Unable to copy share URL')
+    }
+  }, [shareUrl])
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -426,6 +503,53 @@ function MissionDetail({ mission, reports, events, busy, onAction, onForceReport
       <div>
         <div className="text-[11px] font-600 uppercase tracking-wide text-text-3 mb-2">Controls</div>
         <MissionControls mission={mission} onAction={onAction} onForceReport={onForceReport} onEdit={onEdit} busy={busy} />
+      </div>
+
+      <div className="rounded-[12px] border border-white/[0.06] bg-white/[0.025] p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="text-[11px] font-600 uppercase tracking-wide text-text-3">Public share</div>
+            <p className="mt-1 max-w-[620px] text-[12px] leading-relaxed text-text-3/70">
+              Publish a revocable mission artifact with status, budgets, milestones, and generated reports. Secrets, credentials, private files, and hidden runtime metadata stay out of the payload.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {activeShare ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void copyShareUrl()}
+                  className="rounded-[9px] border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-700 text-emerald-200 hover:bg-emerald-500/15"
+                >
+                  Copy link
+                </button>
+                <button
+                  type="button"
+                  disabled={!!shareBusy}
+                  onClick={() => void revokeShareLink()}
+                  className="rounded-[9px] border border-rose-500/20 bg-rose-500/[0.06] px-2.5 py-1.5 text-[11px] font-700 text-rose-200 hover:bg-rose-500/[0.1] disabled:opacity-40"
+                >
+                  {shareBusy === activeShare.id ? 'Revoking...' : 'Revoke'}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                disabled={!!shareBusy}
+                onClick={() => void createShareLink()}
+                className="rounded-[9px] border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-700 text-emerald-200 hover:bg-emerald-500/15 disabled:opacity-40"
+              >
+                {shareBusy === 'create' ? 'Creating...' : 'Create share link'}
+              </button>
+            )}
+          </div>
+        </div>
+        {activeShare && (
+          <div className="mt-3 rounded-[10px] border border-white/[0.06] bg-black/20 px-3 py-2 text-[11px] text-text-3">
+            <span className="font-mono text-text">{shareUrl}</span>
+            <span className="ml-2 text-text-3/55">Created {formatTimestamp(activeShare.createdAt)}</span>
+          </div>
+        )}
       </div>
 
       {mission.successCriteria.length > 0 && (
@@ -503,6 +627,8 @@ function MissionDetail({ mission, reports, events, busy, onAction, onForceReport
 }
 
 export default function MissionsPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [missions, setMissions] = useState<Mission[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [reports, setReports] = useState<MissionReport[]>([])
@@ -570,6 +696,16 @@ export default function MissionsPage() {
     return () => { cancelled = true }
   }, [])
 
+  useEffect(() => {
+    const templateId = searchParams.get('template')?.trim()
+    if (!templateId || templates.length === 0) return
+    const template = templates.find((item) => item.id === templateId)
+    if (!template) return
+    setGalleryOpen(false)
+    setInstallTemplate(template)
+    router.replace('/missions', { scroll: false })
+  }, [router, searchParams, templates])
+
   const handleAction = useCallback(async (action: string, reason?: string) => {
     if (!selectedId) return
     setBusy(true)
@@ -633,10 +769,17 @@ export default function MissionsPage() {
                 <div className="text-[10px] text-text-3">Autonomous goal-driven runs</div>
               </div>
               <button
-                onClick={() => setCreateOpen(true)}
+                onClick={() => {
+                  const template = templates.find((item) => item.id === RELEASE_QA_TEMPLATE_ID)
+                  if (template) {
+                    setInstallTemplate(template)
+                    return
+                  }
+                  setCreateOpen(true)
+                }}
                 className="text-[11px] font-600 px-2.5 py-1 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/15"
               >
-                + New
+                + Mission
               </button>
             </div>
             {templates.length > 0 && (
@@ -736,6 +879,9 @@ export default function MissionsPage() {
         sessions={sessions}
         onClose={() => setInstallTemplate(null)}
         onInstall={handleInstallTemplate}
+        onSessionCreated={(session) => {
+          setSessions((prev) => [session, ...prev.filter((item) => item.id !== session.id)])
+        }}
       />
 
       <MissionEditSheet

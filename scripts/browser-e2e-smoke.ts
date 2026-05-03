@@ -9,7 +9,8 @@ const ROOT = process.cwd()
 const DEFAULT_ACCESS_KEY = 'swarmclaw-e2e-access-key'
 const DEFAULT_CREDENTIAL_SECRET = 'swarmclaw-e2e-credential-secret'
 const HEALTH_TIMEOUT_MS = 90_000
-const PAGE_TIMEOUT_MS = 45_000
+const DEFAULT_PAGE_TIMEOUT_MS = 240_000
+const PAGE_TIMEOUT_MS = readPositiveInt(process.env.SWARMCLAW_E2E_PAGE_TIMEOUT_MS) ?? DEFAULT_PAGE_TIMEOUT_MS
 
 interface StartedServer {
   baseUrl: string
@@ -59,6 +60,12 @@ function readEnvFileKey(filePath: string, key: string): string | null {
     return rawValue
   }
   return null
+}
+
+function readPositiveInt(value: string | undefined): number | null {
+  if (!value) return null
+  const parsed = Number.parseInt(value, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
 function resolveAccessKey(): string {

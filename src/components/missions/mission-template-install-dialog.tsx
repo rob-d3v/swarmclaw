@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { api } from '@/lib/app/api-client'
 import { HintTip } from '@/components/shared/hint-tip'
 import { AdvancedSettingsSection } from '@/components/shared/advanced-settings-section'
 import { inputClass } from '@/components/shared/form-styles'
@@ -28,6 +29,7 @@ interface Props {
   sessions: Session[]
   onClose: () => void
   onInstall: (template: MissionTemplate, input: InstantiateInput) => Promise<void>
+  onSessionCreated?: (session: Session) => void
 }
 
 function formatDuration(sec: number | null | undefined): string {
@@ -48,7 +50,7 @@ function intOrNull(s: string): number | null {
   return n == null ? null : Math.round(n)
 }
 
-export function MissionTemplateInstallDialog({ template, sessions, onClose, onInstall }: Props) {
+export function MissionTemplateInstallDialog({ template, sessions, onClose, onInstall, onSessionCreated }: Props) {
   const [title, setTitle] = useState('')
   const [goal, setGoal] = useState('')
   const [criteriaText, setCriteriaText] = useState('')
@@ -134,6 +136,26 @@ export function MissionTemplateInstallDialog({ template, sessions, onClose, onIn
     }
   }
 
+  const createDriverSession = async () => {
+    if (!template) return
+    setBusy(true)
+    try {
+      const session = await api<Session>('POST', '/chats', {
+        name: `${template.name} mission driver`,
+        sessionType: 'human',
+        heartbeatEnabled: true,
+        heartbeatIntervalSec: 300,
+      })
+      setRootSessionId(session.id)
+      onSessionCreated?.(session)
+      toast.success('Mission driver chat created')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to create mission driver chat')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
@@ -197,6 +219,16 @@ export function MissionTemplateInstallDialog({ template, sessions, onClose, onIn
                 </option>
               ))}
             </select>
+            {sessions.length === 0 && (
+              <button
+                type="button"
+                onClick={() => void createDriverSession()}
+                disabled={busy}
+                className="mt-2 self-start rounded-[10px] border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[12px] font-700 text-emerald-200 hover:bg-emerald-500/15 disabled:opacity-40"
+              >
+                Create mission driver chat
+              </button>
+            )}
           </label>
         </div>
 

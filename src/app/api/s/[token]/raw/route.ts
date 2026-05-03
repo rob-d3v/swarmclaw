@@ -49,7 +49,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ token: string 
     if (payload.milestones.length > 0) {
       lines.push('## Milestones', '')
       for (const m of payload.milestones) {
-        lines.push(`- ${new Date(m.at).toISOString().slice(0, 19).replace('T', ' ')}: ${m.note}`)
+        lines.push(`- ${new Date(m.at).toISOString().slice(0, 19).replace('T', ' ')}: ${m.summary}`)
       }
       lines.push('')
     }

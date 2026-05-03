@@ -73,6 +73,9 @@ type Props = {
   onReviewApprovals: () => void
   onInspectFailedRuns: () => void
   onStartReleaseQaMission: () => void
+  onStartLaunchSprintMission: () => void
+  onStartCostAuditMission: () => void
+  onStartConnectorSmokeMission: () => void
 }
 
 export function HomeLaunchpad({
@@ -92,12 +95,15 @@ export function HomeLaunchpad({
   onReviewApprovals,
   onInspectFailedRuns,
   onStartReleaseQaMission,
+  onStartLaunchSprintMission,
+  onStartCostAuditMission,
+  onStartConnectorSmokeMission,
 }: Props) {
   return (
     <div className="max-w-[980px] mx-auto px-6 py-10">
       <div className="rounded-[20px] border border-white/[0.06] bg-white/[0.025] p-6">
         <div className="inline-flex rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-[11px] font-700 uppercase tracking-[0.16em] text-text-3/70">
-          v1.6 Launchpad
+          Mission Command
         </div>
         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-[620px]">
@@ -159,11 +165,52 @@ export function HomeLaunchpad({
           kicker="Autonomous mission"
           title="Run with budgets"
           description="Start a mission template for release QA, research, support triage, cost audit, or failed-run review with reports and caps."
-          primaryLabel="Open Missions"
+          primaryLabel="Release QA"
           secondaryLabel="Quality Center"
           onPrimary={onStartReleaseQaMission}
           onSecondary={onRunEvalSuite}
         />
+      </div>
+
+      <div className="mt-6 rounded-[18px] border border-white/[0.06] bg-white/[0.025] p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="text-[11px] font-700 uppercase tracking-[0.12em] text-text-3/55">Mission starters</div>
+            <p className="mt-1 max-w-[620px] text-[12px] leading-relaxed text-text-3/68">
+              Jump directly into the workflows that produce reusable evidence and shareable reports.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onStartReleaseQaMission}
+              className="rounded-[10px] border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-[12px] font-display font-700 text-emerald-200 hover:bg-emerald-500/15"
+            >
+              Release QA
+            </button>
+            <button
+              type="button"
+              onClick={onStartLaunchSprintMission}
+              className="rounded-[10px] border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-[12px] font-display font-700 text-text-2 hover:bg-white/[0.08]"
+            >
+              Launch Sprint
+            </button>
+            <button
+              type="button"
+              onClick={onStartCostAuditMission}
+              className="rounded-[10px] border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-[12px] font-display font-700 text-text-2 hover:bg-white/[0.08]"
+            >
+              Cost Audit
+            </button>
+            <button
+              type="button"
+              onClick={onStartConnectorSmokeMission}
+              className="rounded-[10px] border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-[12px] font-display font-700 text-text-2 hover:bg-white/[0.08]"
+            >
+              Connector Smoke
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
