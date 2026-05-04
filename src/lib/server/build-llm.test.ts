@@ -250,6 +250,19 @@ test('buildChatModel disables parallel_tool_calls for Ollama local to avoid dupl
   assert.equal(llm.clientConfig?.baseURL, 'http://localhost:11434/v1')
 })
 
+test('buildChatModel uses a reasoning_content-preserving bridge for DeepSeek', () => {
+  const llm = buildChatModel({
+    provider: 'deepseek',
+    model: 'deepseek-reasoner',
+    apiKey: 'deepseek-key',
+  }) as ChatOpenAI
+  const completionBridge = llm as unknown as { completions?: { constructor?: { name?: string } } }
+
+  assert.equal(llm.model, 'deepseek-reasoner')
+  assert.equal(llm.clientConfig?.baseURL, 'https://api.deepseek.com/v1')
+  assert.equal(completionBridge.completions?.constructor?.name, 'DeepSeekReasoningChatOpenAICompletions')
+})
+
 test('buildChatModel uses Ollama Cloud only when explicit cloud mode is selected', () => {
   saveCredentials({
     'cred-1': {

@@ -278,6 +278,7 @@ export async function finalizeChatTurn(params: {
 
   const {
     thinkingText,
+    reasoningContent,
     streamErrors,
     accumulatedUsage,
   } = partialPersistence.getSnapshot()
@@ -487,6 +488,7 @@ export async function finalizeChatTurn(params: {
           text: persistedText,
           time: nowTs,
           thinking: thinkingText || undefined,
+          reasoningContent: reasoningContent || undefined,
           toolEvents: persistedToolEvents.length ? persistedToolEvents : undefined,
           kind: persistedKind,
           citations: grounding.citations.length > 0 ? grounding.citations : undefined,

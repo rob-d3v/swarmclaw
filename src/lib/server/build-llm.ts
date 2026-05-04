@@ -2,6 +2,10 @@ import { ChatAnthropic } from '@langchain/anthropic'
 import { ChatOpenAI } from '@langchain/openai'
 import { getProviderList } from '../providers'
 import { normalizeOpenClawEndpoint } from '@/lib/openclaw/openclaw-endpoint'
+import {
+  createDeepSeekReasoningChatOpenAI,
+  shouldUseDeepSeekReasoningBridge,
+} from '@/lib/providers/deepseek-reasoning-chat-openai'
 import { NON_LANGGRAPH_PROVIDER_IDS } from '../provider-sets'
 import { resolveOllamaRuntimeConfig } from './ollama-runtime'
 import { resolveProviderApiEndpoint, resolveProviderCredentialId } from './provider-endpoint'
@@ -135,6 +139,9 @@ export function buildChatModel(opts: {
     if (provider === 'openclaw') {
       config.configuration.defaultHeaders = { 'Content-Type': 'text/plain' }
     }
+  }
+  if (shouldUseDeepSeekReasoningBridge(provider, endpoint)) {
+    return createDeepSeekReasoningChatOpenAI(config)
   }
   return new ChatOpenAI(config)
 }

@@ -26,6 +26,10 @@ import { truncateToolResultText, calculateMaxToolResultChars } from '@/lib/serve
 import { notifyWithPayload } from '@/lib/server/ws-hub'
 import { resolveExclusiveMemoryWriteTerminalAllowance } from '@/lib/server/chat-execution/chat-streaming-utils'
 import { getContextWindowSize } from '@/lib/server/context-manager'
+import {
+  createReasoningContentMetadata,
+  extractReasoningContentDelta,
+} from '@/lib/providers/deepseek-reasoning-chat-openai'
 
 // ---------------------------------------------------------------------------
 // LangGraph event kind constants
@@ -82,7 +86,7 @@ export async function processIterationEvents(opts: ProcessIterationEventsOpts): 
   } = opts
 
   let waitingForToolResult = false
-  let reachedExecutionBoundary = false
+  const reachedExecutionBoundary = false
   let executionFollowthroughReason: 'research_limit' | 'post_simulation' | null = null
   let loopBroken = false
   let toolEndCount = 0
@@ -98,6 +102,12 @@ export async function processIterationEvents(opts: ProcessIterationEventsOpts): 
     if (kind === EVENT_CHAT_MODEL_STREAM) {
       timers.armIdleWatchdog(waitingForToolResult)
       const chunk = event.data?.chunk
+      const reasoningDelta = extractReasoningContentDelta(chunk?.additional_kwargs as Record<string, unknown> | undefined)
+      if (reasoningDelta) {
+        state.accumulatedThinking += reasoningDelta
+        write(`data: ${JSON.stringify({ t: 'thinking', text: reasoningDelta })}\n\n`)
+        write(`data: ${JSON.stringify({ t: 'md', text: JSON.stringify(createReasoningContentMetadata(reasoningDelta)) })}\n\n`)
+      }
       if (chunk?.content) {
         if (Array.isArray(chunk.content)) {
           for (const block of chunk.content) {

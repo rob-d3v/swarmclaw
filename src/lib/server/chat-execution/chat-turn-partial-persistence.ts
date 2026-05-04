@@ -19,9 +19,11 @@ import {
   applyMessageLifecycleHooks,
   type PreparedExecutableChatTurn,
 } from '@/lib/server/chat-execution/chat-turn-preparation'
+import { REASONING_CONTENT_MD_KEY } from '@/lib/providers/deepseek-reasoning-chat-openai'
 
 export interface PartialAssistantSnapshot {
   thinkingText: string
+  reasoningContent: string
   toolEvents: MessageToolEvent[]
   streamErrors: string[]
   accumulatedUsage: {
@@ -53,6 +55,7 @@ export function createPartialAssistantPersistence(input: {
   const accumulatedUsage = { inputTokens: 0, outputTokens: 0, estimatedCost: 0 }
 
   let thinkingText = ''
+  let reasoningContent = ''
   let streamingPartialText = ''
   let lastPartialSaveAt = 0
   let lastPartialSnapshotKey = ''
@@ -82,6 +85,7 @@ export function createPartialAssistantPersistence(input: {
           streaming: true,
           runId: prepared.lifecycleRunId,
           thinking: thinkingText || undefined,
+          reasoningContent: reasoningContent || undefined,
           toolEvents: persistedToolEvents.length ? persistedToolEvents : undefined,
         },
         enabledIds: prepared.extensionsForRun,
@@ -93,6 +97,7 @@ export function createPartialAssistantPersistence(input: {
       const snapshotKey = JSON.stringify([
         partialMsg.text,
         partialMsg.thinking || '',
+        partialMsg.reasoningContent || '',
         getToolEventsSnapshotKey(partialMsg.toolEvents || []),
       ])
       if (snapshotKey === lastPartialSnapshotKey) return
@@ -140,6 +145,7 @@ export function createPartialAssistantPersistence(input: {
     if (event.t === 'reset') {
       streamingPartialText = event.text || ''
       thinkingText = ''
+      reasoningContent = ''
       toolEvents.length = 0
       shouldPersistPartial = true
       immediatePartialPersist = true
@@ -168,6 +174,11 @@ export function createPartialAssistantPersistence(input: {
           if (typeof usage.inputTokens === 'number') accumulatedUsage.inputTokens += usage.inputTokens
           if (typeof usage.outputTokens === 'number') accumulatedUsage.outputTokens += usage.outputTokens
           if (typeof usage.estimatedCost === 'number') accumulatedUsage.estimatedCost += usage.estimatedCost
+        }
+        const reasoningContentDelta = mdPayload[REASONING_CONTENT_MD_KEY]
+        if (typeof reasoningContentDelta === 'string' && reasoningContentDelta.length > 0) {
+          reasoningContent += reasoningContentDelta
+          shouldPersistPartial = true
         }
       } catch {
         // Ignore non-JSON md events.
@@ -212,6 +223,7 @@ export function createPartialAssistantPersistence(input: {
     getSnapshot() {
       return {
         thinkingText,
+        reasoningContent,
         toolEvents: [...toolEvents],
         streamErrors: [...streamErrors],
         accumulatedUsage: { ...accumulatedUsage },

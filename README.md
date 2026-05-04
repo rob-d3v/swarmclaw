@@ -399,6 +399,14 @@ Operational docs: https://swarmclaw.ai/docs/observability
 
 ## Releases
 
+### v1.8.11 Highlights
+
+DeepSeek tool-use hotfix for issue [#67](https://github.com/swarmclawai/swarmclaw/issues/67).
+
+- **DeepSeek reasoning replay.** Stored assistant turns now keep provider-native `reasoning_content` separately from visible text and send it back to DeepSeek on follow-up tool-use turns.
+- **Streaming parity.** Direct OpenAI-compatible streams and LangGraph agent streams both preserve `reasoning_content` while continuing to show reasoning through SwarmClaw's existing thinking surface.
+- **Regression coverage.** Added tests for DeepSeek history replay and the LangChain bridge selection path.
+
 ### v1.8.1 Highlights
 
 Operator evidence release: a focused follow-up that makes release and mission review easier to scan.

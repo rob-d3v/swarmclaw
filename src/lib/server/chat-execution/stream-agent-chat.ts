@@ -171,6 +171,15 @@ function extractProviderErrorInfo(err: unknown): { statusCode: number; retryAfte
   return { statusCode, retryAfterMs }
 }
 
+function buildAssistantHistoryMessage(message: Message): AIMessage {
+  return new AIMessage({
+    content: message.text,
+    ...(message.reasoningContent
+      ? { additional_kwargs: { reasoning_content: message.reasoningContent } }
+      : {}),
+  })
+}
+
 /** Extract a breadcrumb title from notable tool completions (task/schedule/agent creation). */
 interface StreamAgentChatOpts {
   session: Session
@@ -732,7 +741,7 @@ async function streamAgentChatCore(opts: StreamAgentChatOpts): Promise<StreamAge
       const resolvedImg = resolveImagePath(m.imagePath, m.imageUrl)
       langchainMessages.push(new HumanMessage({ content: await buildLangChainContent(m.text, resolvedImg ?? undefined, m.attachedFiles) }))
     } else {
-      langchainMessages.push(new AIMessage({ content: m.text }))
+      langchainMessages.push(buildAssistantHistoryMessage(m))
     }
   }
 
@@ -1085,7 +1094,7 @@ async function streamAgentChatCore(opts: StreamAgentChatOpts): Promise<StreamAge
             if (m.role === 'user') {
               langchainMessages.push(new HumanMessage({ content: m.text }))
             } else {
-              langchainMessages.push(new AIMessage({ content: m.text }))
+              langchainMessages.push(buildAssistantHistoryMessage(m))
             }
           }
           langchainMessages.push(new HumanMessage({ content: currentContent }))

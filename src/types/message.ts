@@ -40,6 +40,8 @@ export interface Message {
   attachedFiles?: string[]
   toolEvents?: MessageToolEvent[]
   thinking?: string
+  /** Provider-native assistant reasoning used only when replaying model history. */
+  reasoningContent?: string
   kind?: 'chat' | 'heartbeat' | 'system' | 'context-clear' | 'extension-ui' | 'connector-delivery'
   suppressed?: boolean
   bookmarked?: boolean

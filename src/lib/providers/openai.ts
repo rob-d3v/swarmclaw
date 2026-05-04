@@ -3,6 +3,10 @@ import type { StreamChatOptions } from './index'
 import { PROVIDER_DEFAULTS, IMAGE_EXTS, TEXT_EXTS, PDF_MAX_CHARS, MAX_HISTORY_MESSAGES, writeSSE } from './provider-defaults'
 import { log } from '@/lib/server/logger'
 import { resolveImagePath } from '@/lib/server/resolve-image'
+import {
+  createReasoningContentMetadata,
+  shouldUseDeepSeekReasoningBridge,
+} from '@/lib/providers/deepseek-reasoning-chat-openai'
 
 const TAG = 'provider-openai'
 
@@ -173,6 +177,7 @@ export function streamOpenAiChat({ session, message, imagePath, imageUrl, apiKey
                       : ''
                 if (reasoningDelta) {
                   writeSSE(write, 'thinking', reasoningDelta)
+                  writeSSE(write, 'md', JSON.stringify(createReasoningContentMetadata(reasoningDelta)))
                 }
                 if (contentDelta) {
                   fullResponse += contentDelta
@@ -217,7 +222,11 @@ export function streamOpenAiChat({ session, message, imagePath, imageUrl, apiKey
 }
 
 async function buildMessages(session: Record<string, unknown>, message: string, imagePath: string | undefined, systemPrompt: string | undefined, loadHistory: (id: string) => Record<string, unknown>[], imageUrl?: string) {
-  const msgs: Array<{ role: string; content: unknown }> = []
+  const msgs: Array<{ role: string; content: unknown; reasoning_content?: string }> = []
+  const includeReasoningContent = shouldUseDeepSeekReasoningBridge(
+    typeof session.provider === 'string' ? session.provider : null,
+    typeof session.apiEndpoint === 'string' ? session.apiEndpoint : null,
+  )
 
   if (systemPrompt) {
     msgs.push({ role: 'system', content: systemPrompt })
@@ -231,7 +240,15 @@ async function buildMessages(session: Record<string, unknown>, message: string, 
         const parts = await fileToContentParts(histImagePath)
         msgs.push({ role: 'user', content: [...parts, { type: 'text', text: m.text }] })
       } else {
-        msgs.push({ role: m.role as string, content: m.text })
+        const role = m.role as string
+        const reasoningContent = includeReasoningContent && role === 'assistant' && typeof m.reasoningContent === 'string'
+          ? m.reasoningContent
+          : ''
+        msgs.push({
+          role,
+          content: m.text,
+          ...(reasoningContent ? { reasoning_content: reasoningContent } : {}),
+        })
       }
     }
   }
