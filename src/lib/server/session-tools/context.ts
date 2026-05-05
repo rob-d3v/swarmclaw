@@ -94,6 +94,8 @@ export interface ToolBuildContext {
   fileAccessPolicy?: { allowedPaths?: string[]; blockedPaths?: string[] } | null
   /** Agent's sandbox config — passed to shell for session-scoped container execution */
   sandboxConfig?: NonNullable<Agent['sandboxConfig']> | null
+  /** Loaded agent record for tool builders that need per-agent runtime settings */
+  agentRecord?: Agent | null
   /** Agent's filesystem scope — 'machine' allows file access outside the workspace */
   filesystemScope?: 'workspace' | 'machine'
 }

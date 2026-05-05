@@ -399,6 +399,14 @@ Operational docs: https://swarmclaw.ai/docs/observability
 
 ## Releases
 
+### v1.8.13 Highlights
+
+Task retry and host execute hotfix for issues [#68](https://github.com/swarmclawai/swarmclaw/issues/68) and [#69](https://github.com/swarmclawai/swarmclaw/issues/69).
+
+- **Per-agent host execute.** Agents configured with `executeConfig.backend = "host"` now pass that setting into the runtime `execute` tool, so `persistent=true` uses the documented host backend.
+- **Scheduled task validation.** Schedule-created tasks no longer get auto-classified as implementation tasks for quality gates unless they explicitly opt into a task quality gate.
+- **Retry loop guard.** A task that fails again with the same retry reason is dead-lettered instead of spending another run on identical work.
+
 ### v1.8.12 Highlights
 
 Gateway Fleet Command release: SwarmClaw now treats OpenClaw gateways as an operator surface instead of a background provider detail.

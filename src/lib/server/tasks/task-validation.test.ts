@@ -49,6 +49,39 @@ test('validateTaskCompletion still enforces stricter minimum for implementation 
   assert.ok(validation.reasons.some((reason) => reason.includes('Result summary is too short')))
 })
 
+test('validateTaskCompletion does not auto-apply implementation quality gates to scheduled tasks', () => {
+  const validation = validateTaskCompletion({
+    title: '[Sched] Daily wiki hygiene (run #1)',
+    description: 'Run scripts/wiki-hygiene.mjs and post the digest to Slack.',
+    result: 'Ran node scripts/wiki-hygiene.mjs and posted the digest to Slack with exit code 0.',
+    sourceType: 'schedule',
+    sourceScheduleId: 'schedule-wiki',
+    error: null,
+  } as Partial<BoardTask>)
+
+  assert.equal(validation.ok, true)
+})
+
+test('validateTaskCompletion still enforces explicit quality gates on scheduled tasks', () => {
+  const validation = validateTaskCompletion({
+    title: '[Sched] Daily wiki hygiene (run #1)',
+    description: 'Run scripts/wiki-hygiene.mjs and post the digest to Slack.',
+    result: 'Ran node scripts/wiki-hygiene.mjs and posted the digest to Slack with exit code 0.',
+    sourceType: 'schedule',
+    sourceScheduleId: 'schedule-wiki',
+    qualityGate: {
+      enabled: true,
+      minResultChars: 20,
+      minEvidenceItems: 2,
+      requireVerification: true,
+    },
+    error: null,
+  } as Partial<BoardTask>)
+
+  assert.equal(validation.ok, false)
+  assert.ok(validation.reasons.some((reason) => reason.includes('verification evidence is required')))
+})
+
 test('validateTaskCompletion fails implementation task with unfinished next-step language', () => {
   const validation = validateTaskCompletion({
     title: 'Build weather dashboard',

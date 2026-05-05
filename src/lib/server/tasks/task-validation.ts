@@ -85,7 +85,8 @@ export function validateTaskCompletion(
   const report = options.report || null
   const hasExplicitQualityGate = !!task.qualityGate && typeof task.qualityGate === 'object'
   const qualityGate = normalizeTaskQualityGate(task.qualityGate || null, options.settings || null)
-  const implementationTask = IMPLEMENTATION_HINT.test(title) || IMPLEMENTATION_HINT.test(description)
+  const scheduleTask = task.sourceType === 'schedule' || typeof task.sourceScheduleId === 'string'
+  const implementationTask = !scheduleTask && (IMPLEMENTATION_HINT.test(title) || IMPLEMENTATION_HINT.test(description))
 
   if (error) reasons.push('Task has a non-empty error field.')
   if (/^untitled task$/i.test(title) && !description) {

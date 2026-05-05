@@ -124,6 +124,14 @@ function applyTaskPolicyDefaults(task: BoardTask): void {
   if (task.deadLetteredAt === undefined) task.deadLetteredAt = null
 }
 
+function formatRetryError(reason: string): string {
+  return `Retry scheduled after failure: ${reason}`.slice(0, 500)
+}
+
+function isRepeatedRetryFailure(previousError: unknown, reason: string): boolean {
+  return typeof previousError === 'string' && previousError === formatRetryError(reason)
+}
+
 export interface TaskResumeState {
   claudeSessionId: string | null
   codexThreadId: string | null
@@ -971,9 +979,10 @@ function scheduleRetryOrDeadLetter(task: BoardTask, reason: string): 'retry' | '
   }
   applyTaskPolicyDefaults(task)
   const now = Date.now()
+  const repeatedRetryFailure = isRepeatedRetryFailure(task.error, reason)
   task.attempts = (task.attempts || 0) + 1
 
-  if ((task.attempts || 0) < (task.maxAttempts || 1)) {
+  if ((task.attempts || 0) < (task.maxAttempts || 1) && !repeatedRetryFailure) {
     const delayMs = jitteredBackoff((task.retryBackoffSec || 30) * 1000, Math.max(0, (task.attempts || 1) - 1), 6 * 3600_000)
     task.status = 'queued'
     task.retryScheduledAt = now + delayMs
@@ -982,7 +991,7 @@ function scheduleRetryOrDeadLetter(task: BoardTask, reason: string): 'retry' | '
     // recovery loop burns CPU re-queueing a task that can never run.
     task.checkoutRunId = null
     task.updatedAt = now
-    task.error = `Retry scheduled after failure: ${reason}`.slice(0, 500)
+    task.error = formatRetryError(reason)
     if (!task.comments) task.comments = []
     task.comments.push({
       id: genId(),

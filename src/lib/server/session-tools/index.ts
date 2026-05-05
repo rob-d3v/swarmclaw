@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { tool, type StructuredToolInterface } from '@langchain/core/tools'
-import type { Session } from '@/types'
+import type { Agent, Session } from '@/types'
 import { dedup, errorMessage } from '@/lib/shared-utils'
 import { loadSettings, loadSession, loadAgent, loadMcpServers, patchAgent, patchSession } from '../storage'
 import { loadRuntimeSettings } from '@/lib/server/runtime/runtime-settings'
@@ -221,6 +221,7 @@ export async function buildSessionTools(cwd: string, enabledExtensions: string[]
       activeExtensions,
       fileAccessPolicy: effectiveFileAccessPolicy,
       sandboxConfig: agentRecord?.sandboxConfig ?? null,
+      agentRecord: agentRecord as Agent | null,
       filesystemScope,
     }
 

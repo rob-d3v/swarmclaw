@@ -26,6 +26,7 @@ import {
   normalizeAgentExecuteConfig,
   type AgentExecuteConfig,
 } from '@/lib/agent-execute-defaults'
+import { loadAgent } from '../storage'
 
 const TAG = 'execute'
 
@@ -310,9 +311,9 @@ registerNativeCapability('execute', ExecuteExtension)
 export function buildExecuteTools(bctx: ToolBuildContext) {
   if (!bctx.hasExtension('execute')) return []
 
-  // Resolve execute config from the agent
-  const session = bctx.resolveCurrentSession?.()
-  const agent = session?.agent as (Agent & { executeConfig?: ExecuteConfig }) | undefined
+  const agentId = typeof bctx.ctx?.agentId === 'string' ? bctx.ctx.agentId.trim() : ''
+  const agent = (bctx.agentRecord as (Agent & { executeConfig?: ExecuteConfig }) | null | undefined)
+    ?? (agentId ? (loadAgent(agentId) as (Agent & { executeConfig?: ExecuteConfig }) | null) : null)
   const executeConfig = normalizeAgentExecuteConfig(agent?.executeConfig)
 
   return [
