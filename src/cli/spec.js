@@ -386,6 +386,8 @@ const COMMAND_GROUPS = {
       install: { description: 'Install extension by URL', method: 'POST', path: '/extensions/install' },
       'settings-get': { description: 'Read extension settings (supports --query extensionId=...)', method: 'GET', path: '/extensions/settings' },
       'settings-set': { description: 'Write extension settings (supports --query extensionId=... and --data JSON)', method: 'PUT', path: '/extensions/settings' },
+      'managed-resources': { description: 'Preview extension-managed agents, routines, folders, gateways, and setup checks', method: 'GET', path: '/extensions/managed-resources' },
+      'managed-resources-action': { description: 'Reconcile or inspect extension-managed resources', method: 'POST', path: '/extensions/managed-resources' },
     },
   },
   providers: {

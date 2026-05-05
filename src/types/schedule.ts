@@ -1,3 +1,5 @@
+import type { ExtensionManagedResourceMarker } from './extension'
+
 export type ScheduleType = 'cron' | 'interval' | 'once'
 export type ScheduleStatus = 'active' | 'paused' | 'completed' | 'failed' | 'archived'
 export type ScheduleTaskMode = 'task' | 'wake_only' | 'protocol'
@@ -54,6 +56,7 @@ export interface Schedule {
   followupThreadId?: string | null
   followupSenderId?: string | null
   followupSenderName?: string | null
+  managedByExtension?: ExtensionManagedResourceMarker | null
   createdAt: number
   updatedAt?: number
 }

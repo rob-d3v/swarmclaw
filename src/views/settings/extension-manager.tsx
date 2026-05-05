@@ -8,14 +8,43 @@ import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { errorMessage } from '@/lib/shared-utils'
 
+type ManagedResourceStatus = 'declared' | 'resolved' | 'missing' | 'missing_ref' | 'unsupported_trigger'
+type ManagedResourceSummary = {
+  extensions: Array<{
+    extensionId: string
+    extensionName: string
+    enabled: boolean
+    isBuiltin: boolean
+    agents: Array<{ resourceKey: string; displayName: string; status: ManagedResourceStatus; resourceId: string | null }>
+    schedules: Array<{ resourceKey: string; displayName: string; status: ManagedResourceStatus; resourceId: string | null }>
+    localFolders: Array<{ resourceKey: string; displayName: string; status: ManagedResourceStatus; configured?: boolean; healthy?: boolean }>
+    gatewayPlatforms: Array<{ platformKey: string; displayName: string; transport?: string; endpoint?: string | null }>
+    setupChecks: Array<{ checkKey: string; displayName: string; kind: string; required: boolean }>
+  }>
+  totals: {
+    extensions: number
+    agents: number
+    schedules: number
+    localFolders: number
+    gatewayPlatforms: number
+    setupChecks: number
+    resolvedAgents: number
+    resolvedSchedules: number
+    healthyLocalFolders: number
+  }
+}
+
 export function ExtensionManager() {
-  const [tab, setTab] = useState<'installed' | 'marketplace' | 'url'>('installed')
+  const [tab, setTab] = useState<'installed' | 'managed' | 'marketplace' | 'url'>('installed')
   const [extensions, setExtensions] = useState<ExtensionMeta[]>([])
+  const [managedResources, setManagedResources] = useState<ManagedResourceSummary | null>(null)
   const [marketplace, setMarketplace] = useState<MarketplaceExtension[]>([])
   const [loading, setLoading] = useState(false)
+  const [managedLoading, setManagedLoading] = useState(false)
   const [installing, setInstalling] = useState<string | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
   const [updatingAll, setUpdatingAll] = useState(false)
+  const [reconciling, setReconciling] = useState<string | null>(null)
   const [urlInput, setUrlInput] = useState('')
   const [urlFilename, setUrlFilename] = useState('')
   const [urlStatus, setUrlStatus] = useState<{ ok: boolean; message: string } | null>(null)
@@ -29,6 +58,15 @@ export function ExtensionManager() {
     } catch { /* ignore */ }
   }, [])
 
+  const loadManagedResources = useCallback(async () => {
+    setManagedLoading(true)
+    try {
+      const data = await api<ManagedResourceSummary>('GET', '/extensions/managed-resources')
+      setManagedResources(data)
+    } catch { /* ignore */ }
+    setManagedLoading(false)
+  }, [])
+
   const loadMarketplace = useCallback(async (q = '') => {
     setLoading(true)
     try {
@@ -39,6 +77,7 @@ export function ExtensionManager() {
   }, [])
 
   useEffect(() => { loadExtensions() }, [loadExtensions])
+  useEffect(() => { if (tab === 'managed') loadManagedResources() }, [tab, loadManagedResources])
   useEffect(() => { if (tab === 'marketplace') loadMarketplace(marketplaceQuery) }, [tab, loadMarketplace, marketplaceQuery])
 
   const toggleExtension = async (filename: string, enabled: boolean) => {
@@ -84,6 +123,25 @@ export function ExtensionManager() {
       toast.error(errorMessage(err))
     } finally {
       setUpdatingAll(false)
+    }
+  }
+
+  const handleReconcileManaged = async (extensionId?: string) => {
+    const id = extensionId || 'all'
+    setReconciling(id)
+    try {
+      const result = await api<{ createdAgents: string[]; updatedAgents: string[]; createdSchedules: string[]; updatedSchedules: string[] }>(
+        'POST',
+        '/extensions/managed-resources',
+        { action: 'reconcile', ...(extensionId ? { extensionId } : {}) },
+        { timeoutMs: 30_000 },
+      )
+      await Promise.all([loadExtensions(), loadManagedResources()])
+      toast.success(`Reconciled ${result.createdAgents.length + result.updatedAgents.length} agents and ${result.createdSchedules.length + result.updatedSchedules.length} schedules`)
+    } catch (err: unknown) {
+      toast.error(errorMessage(err))
+    } finally {
+      setReconciling(null)
     }
   }
 
@@ -188,6 +246,14 @@ export function ExtensionManager() {
             </span>
           </div>
         )}
+        {((p.managedAgentCount || 0) + (p.managedScheduleCount || 0) + (p.localFolderCount || 0) + (p.gatewayPlatformCount || 0) + (p.setupCheckCount || 0)) > 0 && (
+          <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-700 uppercase tracking-[0.08em] flex-wrap">
+            {(p.managedAgentCount || 0) > 0 && <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300">{p.managedAgentCount} agents</span>}
+            {(p.managedScheduleCount || 0) > 0 && <span className="px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-300">{p.managedScheduleCount} routines</span>}
+            {(p.localFolderCount || 0) > 0 && <span className="px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-300">{p.localFolderCount} folders</span>}
+            {(p.gatewayPlatformCount || 0) > 0 && <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300">{p.gatewayPlatformCount} gateways</span>}
+          </div>
+        )}
         {p.autoDisabled && (
           <div className="text-[11px] text-amber-400/90 mt-1.5 p-2 rounded-[8px] bg-amber-500/[0.03] border border-amber-500/10">
             {p.lastFailureStage ? `Error at ${p.lastFailureStage}:` : 'Last error:'} {p.lastFailureError}
@@ -242,6 +308,7 @@ export function ExtensionManager() {
           </div>
           <div className="flex bg-surface p-1.5 rounded-[14px] border border-white/[0.04]">
             <button onClick={() => setTab('installed')} className={tabClass('installed')}>Installed</button>
+            <button onClick={() => setTab('managed')} className={tabClass('managed')}>Managed</button>
             <button onClick={() => setTab('marketplace')} className={tabClass('marketplace')}>Marketplace</button>
             <button onClick={() => setTab('url')} className={tabClass('url')}>Manual</button>
           </div>
@@ -297,6 +364,95 @@ export function ExtensionManager() {
                     </div>
                   </section>
                 )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === 'managed' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between gap-4 px-1">
+              <div>
+                <h3 className="text-[13px] font-700 text-text-2">Managed Resources</h3>
+                <p className="text-[12px] text-text-3/50 mt-0.5">Extension-declared agents, routines, folders, gateways, and setup checks.</p>
+              </div>
+              <button
+                onClick={() => handleReconcileManaged()}
+                disabled={!!reconciling || managedLoading}
+                className="h-9 px-4 rounded-[10px] bg-accent-bright text-white text-[11px] font-800 uppercase tracking-[0.08em] border-none cursor-pointer disabled:opacity-50"
+              >
+                {reconciling === 'all' ? 'Reconciling...' : 'Reconcile All'}
+              </button>
+            </div>
+
+            {managedLoading ? (
+              <div className="py-20 flex justify-center">
+                <div className="w-8 h-8 border-2 border-accent-bright/20 border-t-accent-bright rounded-full animate-spin" />
+              </div>
+            ) : !managedResources || managedResources.extensions.length === 0 ? (
+              <div className="py-20 text-center rounded-[24px] border border-dashed border-white/[0.06]">
+                <p className="text-[14px] text-text-3/50">No managed resource declarations found</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  {[
+                    ['Agents', `${managedResources.totals.resolvedAgents}/${managedResources.totals.agents}`],
+                    ['Routines', `${managedResources.totals.resolvedSchedules}/${managedResources.totals.schedules}`],
+                    ['Folders', `${managedResources.totals.healthyLocalFolders}/${managedResources.totals.localFolders}`],
+                    ['Gateways', String(managedResources.totals.gatewayPlatforms)],
+                    ['Setup', String(managedResources.totals.setupChecks)],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-[12px] bg-surface border border-white/[0.06] p-4">
+                      <div className="text-[10px] font-800 uppercase tracking-[0.12em] text-text-3/50">{label}</div>
+                      <div className="text-[22px] font-800 text-text mt-1">{value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {managedResources.extensions.map((entry) => (
+                  <div key={entry.extensionId} className="rounded-[18px] bg-surface border border-white/[0.06] p-5">
+                    <div className="flex items-center justify-between gap-4 mb-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-[14px] font-800 text-text truncate">{entry.extensionName}</h4>
+                          <span className="text-[10px] font-mono text-text-3/50 truncate">{entry.extensionId}</span>
+                        </div>
+                        <div className="text-[11px] text-text-3/50 mt-0.5">
+                          {entry.agents.length} agents, {entry.schedules.length} routines, {entry.localFolders.length} folders, {entry.gatewayPlatforms.length} gateways
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleReconcileManaged(entry.extensionId)}
+                        disabled={!!reconciling}
+                        className="h-8 px-3 rounded-[9px] bg-white/[0.05] hover:bg-white/[0.08] text-text-2 text-[10px] font-800 uppercase tracking-[0.08em] border border-white/[0.06] cursor-pointer disabled:opacity-50"
+                      >
+                        {reconciling === entry.extensionId ? 'Reconciling...' : 'Reconcile'}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {[
+                        ['Agents', entry.agents.map((item) => `${item.displayName} - ${item.status}`)],
+                        ['Routines', entry.schedules.map((item) => `${item.displayName} - ${item.status}`)],
+                        ['Folders', entry.localFolders.map((item) => `${item.displayName} - ${item.configured ? 'configured' : 'missing'}`)],
+                      ].map(([label, rows]) => (
+                        <div key={label as string} className="rounded-[12px] bg-bg/60 border border-white/[0.04] p-3 min-h-[96px]">
+                          <div className="text-[10px] font-800 uppercase tracking-[0.12em] text-text-3/50 mb-2">{label as string}</div>
+                          {(rows as string[]).length > 0 ? (
+                            <div className="space-y-1">
+                              {(rows as string[]).slice(0, 4).map((row) => (
+                                <div key={row} className="text-[11px] text-text-3/80 truncate">{row}</div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-[11px] text-text-3/35">None</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

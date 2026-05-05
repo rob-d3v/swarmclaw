@@ -251,6 +251,125 @@ export interface ExtensionUIDefinition {
   }>
 }
 
+export type ExtensionManagedResourceKind = 'agent' | 'schedule' | 'local_folder'
+
+export interface ExtensionManagedResourceRef {
+  extensionId?: string
+  resourceKind: 'agent' | 'schedule'
+  resourceKey: string
+}
+
+export interface ExtensionManagedResourceMarker {
+  extensionId: string
+  extensionName?: string | null
+  resourceKind: ExtensionManagedResourceKind
+  resourceKey: string
+  declarationHash?: string | null
+  reconciledAt: number
+}
+
+export interface ExtensionManagedAgentDeclaration {
+  agentKey: string
+  displayName: string
+  description?: string | null
+  systemPrompt?: string | null
+  instructions?: {
+    content?: string | null
+    entryFile?: string | null
+    assetPath?: string | null
+  } | null
+  provider?: ProviderId | string | null
+  model?: string | null
+  apiEndpoint?: string | null
+  credentialId?: string | null
+  fallbackCredentialIds?: string[]
+  gatewayProfileId?: string | null
+  preferredGatewayTags?: string[]
+  preferredGatewayUseCase?: string | null
+  capabilities?: string[] | string | null
+  tools?: string[]
+  extensions?: string[]
+  skills?: string[]
+  skillIds?: string[]
+  mcpServerIds?: string[]
+  monthlyBudget?: number | null
+  dailyBudget?: number | null
+  hourlyBudget?: number | null
+  disabled?: boolean
+  heartbeatEnabled?: boolean
+  planningMode?: 'off' | 'strict' | null
+}
+
+export interface ExtensionManagedScheduleTrigger {
+  kind?: 'schedule' | 'api' | 'webhook'
+  label?: string | null
+  enabled?: boolean
+  cronExpression?: string | null
+  timezone?: string | null
+}
+
+export interface ExtensionManagedScheduleDeclaration {
+  scheduleKey?: string
+  routineKey?: string
+  displayName?: string
+  title?: string
+  description?: string | null
+  taskPrompt?: string | null
+  message?: string | null
+  taskMode?: 'task' | 'wake_only' | 'protocol'
+  agentId?: string | null
+  agentRef?: ExtensionManagedResourceRef | null
+  assigneeRef?: ExtensionManagedResourceRef | null
+  scheduleType?: 'cron' | 'interval' | 'once'
+  cron?: string | null
+  intervalMs?: number | null
+  runAt?: number | null
+  timezone?: string | null
+  status?: 'active' | 'paused' | 'completed' | 'failed' | 'archived'
+  priority?: string | null
+  triggers?: ExtensionManagedScheduleTrigger[]
+}
+
+export interface ExtensionManagedLocalFolderDeclaration {
+  folderKey: string
+  displayName: string
+  description?: string | null
+  access?: 'read' | 'readWrite'
+  requiredDirectories?: string[]
+  requiredFiles?: string[]
+}
+
+export interface ExtensionGatewayPlatformDeclaration {
+  platformKey: string
+  displayName: string
+  description?: string | null
+  transport?: 'http' | 'ws' | 'stdio' | 'cli' | 'gateway' | 'custom'
+  endpoint?: string | null
+  authMode?: 'none' | 'bearer' | 'api_key' | 'oauth' | 'custom'
+  setupCheckKey?: string | null
+  capabilities?: string[]
+}
+
+export interface ExtensionSetupCheckDeclaration {
+  checkKey: string
+  displayName: string
+  description?: string | null
+  kind: 'env' | 'command' | 'url' | 'manual'
+  target?: string | null
+  required?: boolean
+}
+
+export interface ExtensionManagedResources {
+  agents?: ExtensionManagedAgentDeclaration[]
+  schedules?: ExtensionManagedScheduleDeclaration[]
+  /** Paperclip-compatible alias. SwarmClaw reconciles routines as managed schedules. */
+  routines?: ExtensionManagedScheduleDeclaration[]
+  localFolders?: ExtensionManagedLocalFolderDeclaration[]
+  /** Hermes-style gateway/platform declaration metadata for setup and diagnostics surfaces. */
+  gatewayPlatforms?: ExtensionGatewayPlatformDeclaration[]
+  setupChecks?: ExtensionSetupCheckDeclaration[]
+}
+
 export interface ExtensionProviderDefinition {
   id: string
   name: string
@@ -300,6 +419,14 @@ export interface Extension {
   ui?: ExtensionUIDefinition
   providers?: ExtensionProviderDefinition[]
   connectors?: ExtensionConnectorDefinition[]
+  managedResources?: ExtensionManagedResources
+  /** Paperclip-compatible top-level aliases. Prefer managedResources for new SwarmClaw extensions. */
+  agents?: ExtensionManagedAgentDeclaration[]
+  schedules?: ExtensionManagedScheduleDeclaration[]
+  routines?: ExtensionManagedScheduleDeclaration[]
+  localFolders?: ExtensionManagedLocalFolderDeclaration[]
+  gatewayPlatforms?: ExtensionGatewayPlatformDeclaration[]
+  setupChecks?: ExtensionSetupCheckDeclaration[]
 }
 
 export interface ExtensionMeta {
@@ -325,6 +452,11 @@ export interface ExtensionMeta {
   hasUI?: boolean
   providerCount?: number
   connectorCount?: number
+  managedAgentCount?: number
+  managedScheduleCount?: number
+  localFolderCount?: number
+  gatewayPlatformCount?: number
+  setupCheckCount?: number
   createdByAgentId?: string | null
   settingsFields?: ExtensionSettingsField[]
   hasDependencyManifest?: boolean

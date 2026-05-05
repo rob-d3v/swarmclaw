@@ -185,7 +185,7 @@ Full hosted deployment guides live at https://swarmclaw.ai/docs/deployment
 - **Wallets**: linked Base wallet generation, address management, approval-oriented limits, and agent payout identity.
 - **Connectors**: Discord, Slack, Telegram, WhatsApp, Teams, Matrix, OpenClaw, SwarmDock, SwarmFeed, and more.
 - **MCP Servers**: connect any Model Context Protocol server (stdio, SSE, or streamable HTTP) and inject its tools into agents alongside built-ins. Configure, test, and assign per-agent from the MCP Servers panel.
-- **Extensions**: external tool extensions, UI modules, hooks, and install/update flows.
+- **Extensions**: external tool extensions, UI modules, hooks, install/update flows, and managed resource manifests for extension-owned agents, routines, local folders, gateways, and setup checks.
 
 ## What SwarmClaw Focuses On
 
@@ -398,6 +398,16 @@ If you need a trace-specific endpoint, set `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` 
 Operational docs: https://swarmclaw.ai/docs/observability
 
 ## Releases
+
+### v1.9.3 Highlights
+
+Bundled extension-orchestration release: Paperclip-style managed plugin resources, Hermes-style gateway/setup declarations, and safer local folder access in one release cycle.
+
+- **Managed extension resources.** Extensions can now declare provisionable agents, schedules/routines, local folders, gateway platforms, and setup checks through `managedResources` or Paperclip-compatible top-level aliases.
+- **Deterministic reconciliation.** `/api/extensions/managed-resources` can preview and reconcile extension-owned agents and routines with stable IDs and `managedByExtension` markers.
+- **Trusted local folders.** Extension-declared local folders support root-bounded inspection and recursive listing with traversal and symlink-escape protection.
+- **Operator UI.** The Extensions screen now shows managed-resource badges and a Managed tab with totals plus per-extension reconcile controls.
+- **Extension authoring spec.** `extension_creator` now documents managed resources, gateway declarations, setup checks, and Paperclip-compatible manifest aliases.
 
 ### v1.9.2 Highlights
 

@@ -138,6 +138,54 @@ module.exports = {
     }
   ],
 
+  // --- Managed Resources (Paperclip-compatible) ---
+  managedResources: {
+    agents: [
+      {
+        agentKey: 'researcher',
+        displayName: 'Managed Researcher',
+        description: 'Reusable agent this extension can provision.',
+        systemPrompt: 'Research carefully and cite durable evidence.',
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        capabilities: ['research', 'analysis'],
+        extensions: ['web', 'memory']
+      }
+    ],
+    schedules: [
+      {
+        scheduleKey: 'daily-digest',
+        displayName: 'Daily Digest',
+        agentRef: { resourceKind: 'agent', resourceKey: 'researcher' },
+        taskPrompt: 'Prepare the daily digest.',
+        scheduleType: 'cron',
+        cron: '0 9 * * *',
+        timezone: 'UTC',
+        status: 'paused'
+      }
+    ],
+    localFolders: [
+      {
+        folderKey: 'workspace',
+        displayName: 'Workspace Folder',
+        access: 'readWrite',
+        requiredDirectories: ['inputs', 'outputs']
+      }
+    ],
+    gatewayPlatforms: [
+      {
+        platformKey: 'openai-compatible-api',
+        displayName: 'OpenAI-compatible API',
+        transport: 'http',
+        endpoint: 'http://127.0.0.1:8642/v1',
+        authMode: 'bearer'
+      }
+    ],
+    setupChecks: [
+      { checkKey: 'api-key', displayName: 'API key configured', kind: 'env', target: 'OPENAI_API_KEY', required: true }
+    ]
+  },
+
   // --- Real OpenClaw Format (register API) ---
   register(api) {
     api.registerHook('agent:start', (ctx) => {
@@ -162,6 +210,8 @@ Key rules:
 - If your extension needs npm/pnpm/yarn/bun packages, include a packageJson object during scaffold or call install_dependencies later.
 - Dependency installs are run by the extension manager inside a per-extension workspace using the selected package manager with scripts disabled.
 - Extension settings are declared through ui.settingsFields and stored per extension ID
+- Managed resources let an extension declare provisionable agents, schedules/routines, trusted local folders, gateway platforms, and setup checks. Operators reconcile them through Extensions > Managed Resources or /api/extensions/managed-resources.
+- Paperclip-compatible top-level agents, routines, and localFolders are also accepted; SwarmClaw reconciles routines as schedules when they include schedule timing.
 - Keep extensions focused: one clear purpose per extension
 `
     }

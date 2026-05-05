@@ -2,6 +2,7 @@ import type { ProviderId, ProviderType, OllamaMode } from './provider'
 import type { SessionResetMode, IdentityContinuityState } from './session'
 import type { SkillAllowlistMode } from './skill'
 import type { DreamConfig } from './dream'
+import type { ExtensionManagedResourceMarker } from './extension'
 
 // --- SwarmFeed Heartbeat ---
 
@@ -237,6 +238,7 @@ export interface Agent {
   swarmfeedLastAutoPostAt?: number | null
   origin?: 'swarmdock' | 'swarmfeed' | 'swarmclaw' | 'external'
   swarmfeedHeartbeat?: SwarmFeedHeartbeatConfig | null
+  managedByExtension?: ExtensionManagedResourceMarker | null
 
   // SwarmDock (marketplace integration)
   swarmdockEnabled?: boolean

@@ -1,4 +1,5 @@
 import type { SessionResetMode } from './session'
+import type { ExtensionManagedLocalFolderDeclaration } from './extension'
 
 // --- App Settings ---
 export type LoopMode = 'bounded' | 'ongoing'
@@ -150,6 +151,13 @@ export interface AppSettings {
   toolLoopCircuitBreaker?: number
   // Per-extension settings (keyed by extensionId)
   extensionSettings?: Record<string, Record<string, unknown>>
+  // Extension-managed resource settings such as trusted local folder roots.
+  extensionManagedResources?: Record<string, {
+    localFolders?: Record<string, ExtensionManagedLocalFolderDeclaration & {
+      path?: string | null
+      updatedAt?: number
+    }>
+  }>
   // Approval policies — opt-in governance gates for sensitive operations
   approvalPolicies?: {
     requireApprovalForAgentCreate?: boolean

@@ -526,6 +526,8 @@ const COMMAND_GROUPS = [
       cmd('settings-set', 'PUT', '/extensions/settings', 'Set extension settings (use --query extensionId=extension_name and --data JSON)', { expectsJsonBody: true }),
       cmd('ui', 'GET', '/extensions/ui', 'List extension UI modules (use --query type=sidebar|header|chat_actions|connectors)'),
       cmd('builtins', 'GET', '/extensions/builtins', 'List built-in extensions'),
+      cmd('managed-resources', 'GET', '/extensions/managed-resources', 'Preview extension-managed agents, routines, folders, gateways, and setup checks'),
+      cmd('managed-resources-action', 'POST', '/extensions/managed-resources', 'Reconcile or inspect extension-managed resources', { expectsJsonBody: true }),
     ],
   },
   {

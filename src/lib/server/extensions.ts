@@ -11,6 +11,7 @@ import type {
   ExtensionUIDefinition,
   ExtensionProviderDefinition,
   ExtensionConnectorDefinition,
+  ExtensionManagedResources,
   Session,
   ExtensionPackageManager,
   ExtensionDependencyInstallStatus,
@@ -467,11 +468,60 @@ function coerceTools(rawTools: unknown): ExtensionToolDef[] {
   return []
 }
 
+function coerceManagedResources(raw: Record<string, unknown>): ExtensionManagedResources | undefined {
+  const explicit = isRecord(raw.managedResources)
+    ? raw.managedResources as Record<string, unknown>
+    : {}
+  const agents = Array.isArray(explicit.agents)
+    ? explicit.agents
+    : Array.isArray(raw.agents)
+      ? raw.agents
+      : undefined
+  const schedules = Array.isArray(explicit.schedules)
+    ? explicit.schedules
+    : Array.isArray(raw.schedules)
+      ? raw.schedules
+      : undefined
+  const routines = Array.isArray(explicit.routines)
+    ? explicit.routines
+    : Array.isArray(raw.routines)
+      ? raw.routines
+      : undefined
+  const localFolders = Array.isArray(explicit.localFolders)
+    ? explicit.localFolders
+    : Array.isArray(raw.localFolders)
+      ? raw.localFolders
+      : undefined
+  const gatewayPlatforms = Array.isArray(explicit.gatewayPlatforms)
+    ? explicit.gatewayPlatforms
+    : Array.isArray(raw.gatewayPlatforms)
+      ? raw.gatewayPlatforms
+      : undefined
+  const setupChecks = Array.isArray(explicit.setupChecks)
+    ? explicit.setupChecks
+    : Array.isArray(raw.setupChecks)
+      ? raw.setupChecks
+      : undefined
+
+  const managedResources: ExtensionManagedResources = {
+    agents: agents as ExtensionManagedResources['agents'],
+    schedules: schedules as ExtensionManagedResources['schedules'],
+    routines: routines as ExtensionManagedResources['routines'],
+    localFolders: localFolders as ExtensionManagedResources['localFolders'],
+    gatewayPlatforms: gatewayPlatforms as ExtensionManagedResources['gatewayPlatforms'],
+    setupChecks: setupChecks as ExtensionManagedResources['setupChecks'],
+  }
+
+  return Object.values(managedResources).some((value) => Array.isArray(value) && value.length > 0)
+    ? managedResources
+    : undefined
+}
+
 function normalizeExtension(mod: unknown): Extension | null {
   const modObj = mod as Record<string, unknown>
   const raw: Record<string, unknown> = (modObj?.default as Record<string, unknown>) || modObj
 
-  if (raw.name && (raw.hooks || raw.tools || raw.ui || raw.providers || raw.connectors)) {
+  if (raw.name && (raw.hooks || raw.tools || raw.ui || raw.providers || raw.connectors || raw.managedResources || raw.agents || raw.schedules || raw.routines || raw.localFolders || raw.gatewayPlatforms || raw.setupChecks)) {
     const hooks = isRecord(raw.hooks) ? (raw.hooks as ExtensionHooks) : {}
     return {
       name: raw.name as string,
@@ -484,6 +534,7 @@ function normalizeExtension(mod: unknown): Extension | null {
       ui: isRecord(raw.ui) ? (raw.ui as ExtensionUIDefinition) : undefined,
       providers: Array.isArray(raw.providers) ? (raw.providers as ExtensionProviderDefinition[]) : undefined,
       connectors: Array.isArray(raw.connectors) ? (raw.connectors as ExtensionConnectorDefinition[]) : undefined,
+      managedResources: coerceManagedResources(raw),
     } as Extension
   }
 
@@ -639,6 +690,7 @@ interface LoadedExtension {
   ui?: ExtensionUIDefinition
   providers?: ExtensionProviderDefinition[]
   connectors?: ExtensionConnectorDefinition[]
+  managedResources?: ExtensionManagedResources
   isBuiltin?: boolean
 }
 
@@ -1017,6 +1069,7 @@ class ExtensionManager {
           ui: p.ui,
           providers: p.providers,
           connectors: p.connectors,
+          managedResources: p.managedResources || coerceManagedResources(p as unknown as Record<string, unknown>),
           isBuiltin: true
         })
         this.markExtensionSuccess(id)
@@ -1064,6 +1117,7 @@ class ExtensionManager {
               ui: ext.ui,
               providers: ext.providers,
               connectors: ext.connectors,
+              managedResources: ext.managedResources,
             })
             this.markExtensionSuccess(file)
           } catch (err: unknown) {
@@ -1143,6 +1197,55 @@ class ExtensionManager {
       if (p.ui) allUI.push(p.ui)
     }
     return allUI
+  }
+
+  getManagedResourceExtensions(): Array<{
+    extensionId: string
+    extensionName: string
+    enabled: boolean
+    isBuiltin: boolean
+    source?: ExtensionMeta['source']
+    managedResources: ExtensionManagedResources
+  }> {
+    this.load()
+    const result: Array<{
+      extensionId: string
+      extensionName: string
+      enabled: boolean
+      isBuiltin: boolean
+      source?: ExtensionMeta['source']
+      managedResources: ExtensionManagedResources
+    }> = []
+
+    for (const [id, entry] of this.extensions.entries()) {
+      const managedResources = entry.managedResources
+      if (!managedResources) continue
+      if (!Object.values(managedResources).some((value) => Array.isArray(value) && value.length > 0)) continue
+      result.push({
+        extensionId: id,
+        extensionName: entry.meta.name,
+        enabled: entry.meta.enabled,
+        isBuiltin: entry.isBuiltin === true,
+        source: entry.meta.source,
+        managedResources,
+      })
+    }
+
+    return result
+  }
+
+  getManagedResources(extensionId: string): ExtensionManagedResources | null {
+    this.load()
+    const candidateIds = expandExtensionIds([extensionId])
+    for (const id of candidateIds) {
+      const loaded = this.extensions.get(id)
+      if (loaded?.managedResources) return loaded.managedResources
+      const builtin = this.builtins.get(id)
+      if (builtin) {
+        return builtin.managedResources || coerceManagedResources(builtin as unknown as Record<string, unknown>) || null
+      }
+    }
+    return null
   }
 
   listExtensionIds(): string[] {
@@ -1842,11 +1945,14 @@ class ExtensionManager {
       const failures = this.readFailureState()
       const metas: ExtensionMeta[] = []
 
-      const describeCapabilities = (loaded?: LoadedExtension, fallback?: Extension): Pick<ExtensionMeta, 'toolCount' | 'hookCount' | 'hasUI' | 'providerCount' | 'connectorCount' | 'settingsFields'> => {
+      const describeCapabilities = (loaded?: LoadedExtension, fallback?: Extension): Pick<ExtensionMeta, 'toolCount' | 'hookCount' | 'hasUI' | 'providerCount' | 'connectorCount' | 'settingsFields' | 'managedAgentCount' | 'managedScheduleCount' | 'localFolderCount' | 'gatewayPlatformCount' | 'setupCheckCount'> => {
         const tools = loaded?.tools || fallback?.tools || []
         const hooks = loaded?.hooks || fallback?.hooks || {}
         const providers = loaded?.providers || fallback?.providers || []
         const connectors = loaded?.connectors || fallback?.connectors || []
+        const managedResources = loaded?.managedResources
+          || fallback?.managedResources
+          || (fallback ? coerceManagedResources(fallback as unknown as Record<string, unknown>) : undefined)
         const hasUi = !!(loaded?.ui || fallback?.ui)
         const settingsFields = loaded?.ui?.settingsFields || fallback?.ui?.settingsFields
         return {
@@ -1855,6 +1961,11 @@ class ExtensionManager {
           hasUI: hasUi,
           providerCount: Array.isArray(providers) ? providers.length : 0,
           connectorCount: Array.isArray(connectors) ? connectors.length : 0,
+          managedAgentCount: managedResources?.agents?.length || 0,
+          managedScheduleCount: (managedResources?.schedules?.length || 0) + (managedResources?.routines?.length || 0),
+          localFolderCount: managedResources?.localFolders?.length || 0,
+          gatewayPlatformCount: managedResources?.gatewayPlatforms?.length || 0,
+          setupCheckCount: managedResources?.setupChecks?.length || 0,
           settingsFields: settingsFields?.length ? settingsFields : undefined,
         }
       }
