@@ -529,6 +529,9 @@ const COMMAND_GROUPS = {
     commands: {
       list: { description: 'List tasks', method: 'GET', path: '/tasks' },
       get: { description: 'Get task by id', method: 'GET', path: '/tasks/:id', params: ['id'] },
+      handoff: { description: 'Get task handoff packet', method: 'GET', path: '/tasks/:id/handoff', params: ['id'] },
+      'handoff-save': { description: 'Save task handoff packet into the task workspace', method: 'POST', path: '/tasks/:id/handoff', params: ['id'] },
+      handoffs: { description: 'List task handoff readiness packets', method: 'GET', path: '/tasks/handoffs' },
       create: { description: 'Create task', method: 'POST', path: '/tasks' },
       bulk: { description: 'Bulk update tasks (status/agent/project)', method: 'POST', path: '/tasks/bulk' },
       update: { description: 'Update task', method: 'PUT', path: '/tasks/:id', params: ['id'] },

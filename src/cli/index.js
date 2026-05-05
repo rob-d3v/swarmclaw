@@ -735,6 +735,9 @@ const COMMAND_GROUPS = [
     commands: [
       cmd('list', 'GET', '/tasks', 'List tasks'),
       cmd('get', 'GET', '/tasks/:id', 'Get task'),
+      cmd('handoff', 'GET', '/tasks/:id/handoff', 'Get task handoff packet'),
+      cmd('handoff-save', 'POST', '/tasks/:id/handoff', 'Save task handoff packet into the task workspace', { expectsJsonBody: true }),
+      cmd('handoffs', 'GET', '/tasks/handoffs', 'List task handoff readiness packets'),
       cmd('create', 'POST', '/tasks', 'Create task', { expectsJsonBody: true }),
       cmd('bulk', 'POST', '/tasks/bulk', 'Bulk update tasks (status/agent/project)', { expectsJsonBody: true }),
       cmd('update', 'PUT', '/tasks/:id', 'Update task', { expectsJsonBody: true }),

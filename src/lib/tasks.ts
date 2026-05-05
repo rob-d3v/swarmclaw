@@ -1,5 +1,5 @@
 import { api } from './app/api-client'
-import type { BoardTask, TaskComment, TaskPreviewLink, TaskRuntimeService } from '../types'
+import type { BoardTask, TaskComment, TaskHandoffPacket, TaskPreviewLink, TaskRuntimeService } from '../types'
 
 export const fetchTasks = (includeArchived = false) =>
   api<Record<string, BoardTask>>('GET', `/tasks${includeArchived ? '?includeArchived=true' : ''}`)
@@ -29,6 +29,14 @@ export interface GitHubIssueImportResult {
   skipped: GitHubIssueImportItem[]
 }
 
+export interface TaskHandoffSnapshotResult {
+  packet: TaskHandoffPacket
+  files: {
+    markdownPath: string
+    jsonPath: string
+  }
+}
+
 export type TaskWriteInput = Partial<BoardTask> & {
   title?: string
   description?: string
@@ -48,6 +56,17 @@ export const createTask = (data: TaskWriteInput & {
 
 export const updateTask = (id: string, data: TaskWriteInput) =>
   api<BoardTask>('PUT', `/tasks/${id}`, data)
+
+export const fetchTaskHandoff = (id: string) =>
+  api<TaskHandoffPacket>('GET', `/tasks/${encodeURIComponent(id)}/handoff`)
+
+export const fetchTaskHandoffMarkdown = (id: string) =>
+  api<string>('GET', `/tasks/${encodeURIComponent(id)}/handoff?format=markdown`)
+
+export const saveTaskHandoffSnapshot = (id: string, options: { prepareWorkspace?: boolean } = {}) =>
+  api<TaskHandoffSnapshotResult>('POST', `/tasks/${encodeURIComponent(id)}/handoff`, {
+    prepareWorkspace: options.prepareWorkspace ?? true,
+  }, { timeoutMs: 30_000 })
 
 export const deleteTask = (id: string) =>
   api<BoardTask>('DELETE', `/tasks/${id}`)

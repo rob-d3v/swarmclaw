@@ -240,3 +240,94 @@ export interface BoardTask {
   /** Customizable workflow state (separate from `status` lifecycle). */
   workflowStateId?: string | null
 }
+
+export type TaskHandoffCheckStatus = 'ok' | 'warning' | 'blocked'
+export type TaskHandoffReadinessStatus = 'ready' | 'needs_attention' | 'blocked'
+
+export interface TaskHandoffTaskRef {
+  id: string
+  title: string
+  status: BoardTaskStatus
+  agentId?: string | null
+  completedAt?: number | null
+  liveness?: TaskLivenessSnapshot | null
+}
+
+export interface TaskHandoffCheck {
+  id: string
+  label: string
+  status: TaskHandoffCheckStatus
+  detail?: string | null
+  taskIds?: string[]
+}
+
+export interface TaskHandoffRunSummary {
+  runId: string
+  sessionId: string
+  title: string
+  status: string
+  result: string | null
+  error: string | null
+  warnings: string[]
+  evidenceCount: number
+}
+
+export interface TaskHandoffPacket {
+  schemaVersion: 1
+  taskId: string
+  title: string
+  description?: string | null
+  objective?: string | null
+  status: BoardTaskStatus
+  priority?: BoardTask['priority']
+  generatedAt: number
+  updatedAt: number
+  owner: {
+    agentId: string | null
+    projectId?: string | null
+    sessionId?: string | null
+    createdByAgentId?: string | null
+    delegatedByAgentId?: string | null
+  }
+  liveness: TaskLivenessSnapshot
+  execution: {
+    workspacePath?: string | null
+    sourceCwd?: string | null
+    mode?: TaskExecutionWorkspaceMode | null
+    contextPath?: string | null
+    envPath?: string | null
+    previewLinks: TaskPreviewLink[]
+    runtimeServices: TaskRuntimeService[]
+  }
+  dependencies: {
+    blockedBy: TaskHandoffTaskRef[]
+    blocks: TaskHandoffTaskRef[]
+  }
+  qualityGate: {
+    enabled: boolean
+    config: TaskQualityGateConfig | null
+    checks: TaskHandoffCheck[]
+  }
+  outputs: {
+    result?: string | null
+    error?: string | null
+    outputFiles: string[]
+    artifacts: NonNullable<BoardTask['artifacts']>
+    completionReportPath?: string | null
+    verificationSummary?: string | null
+  }
+  resume: {
+    cliProvider?: string | null
+    cliResumeId?: string | null
+    claudeResumeId?: string | null
+    codexResumeId?: string | null
+    opencodeResumeId?: string | null
+    geminiResumeId?: string | null
+  }
+  run: TaskHandoffRunSummary | null
+  readiness: {
+    status: TaskHandoffReadinessStatus
+    checks: TaskHandoffCheck[]
+    recommendedActions: string[]
+  }
+}

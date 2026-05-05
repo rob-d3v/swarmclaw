@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Activity, ExternalLink, FolderOpen, PlayCircle } from 'lucide-react'
+import { Activity, ClipboardCopy, ExternalLink, FileText, FolderOpen, PlayCircle, Save } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useAppStore } from '@/stores/use-app-store'
@@ -27,6 +27,7 @@ import { dedup, errorMessage } from '@/lib/shared-utils'
 import { SectionLabel } from '@/components/shared/section-label'
 import { AgentAvatar } from '@/components/agents/agent-avatar'
 import { InfoChip } from '@/components/ui/info-chip'
+import { fetchTaskHandoffMarkdown, saveTaskHandoffSnapshot } from '@/lib/tasks'
 
 function fmtTime(ts: number) {
   const d = new Date(ts)
@@ -105,6 +106,11 @@ export function TaskSheet() {
   const [qualityGateRequireReport, setQualityGateRequireReport] = useState(false)
   const [provisionWorkspace, setProvisionWorkspace] = useState(false)
   const [workspacePreparing, setWorkspacePreparing] = useState(false)
+  const [handoffCopying, setHandoffCopying] = useState(false)
+  const [handoffSaving, setHandoffSaving] = useState(false)
+  const [handoffCopied, setHandoffCopied] = useState(false)
+  const [handoffError, setHandoffError] = useState<string | null>(null)
+  const [handoffSavedPath, setHandoffSavedPath] = useState<string | null>(null)
   const [structuredSessionOpen, setStructuredSessionOpen] = useState(false)
   const formInitRef = useRef<string | null>(null)
 
@@ -160,6 +166,9 @@ export function TaskSheet() {
       setQualityGateRequireArtifact(gate?.requireArtifact ?? defaultGateRequireArtifact)
       setQualityGateRequireReport(gate?.requireReport ?? defaultGateRequireReport)
       setProvisionWorkspace(false)
+      setHandoffCopied(false)
+      setHandoffError(null)
+      setHandoffSavedPath(null)
       formInitRef.current = initKey
       return
     }
@@ -185,6 +194,9 @@ export function TaskSheet() {
     setQualityGateRequireArtifact(defaultGateRequireArtifact)
     setQualityGateRequireReport(defaultGateRequireReport)
     setProvisionWorkspace(false)
+    setHandoffCopied(false)
+    setHandoffError(null)
+    setHandoffSavedPath(null)
     formInitRef.current = initKey
   }, [
     activeProjectFilter,
@@ -209,6 +221,9 @@ export function TaskSheet() {
   const onClose = () => {
     formInitRef.current = null
     setDepError(null)
+    setHandoffCopied(false)
+    setHandoffError(null)
+    setHandoffSavedPath(null)
     setOpen(false)
     setEditingId(null)
   }
@@ -299,6 +314,39 @@ export function TaskSheet() {
     }
   }
 
+  const handleCopyHandoff = async () => {
+    if (!editing) return
+    setHandoffCopying(true)
+    try {
+      const markdown = await fetchTaskHandoffMarkdown(editing.id)
+      if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+        throw new Error('Clipboard is unavailable in this browser')
+      }
+      await navigator.clipboard.writeText(markdown)
+      setHandoffCopied(true)
+      setHandoffError(null)
+      globalThis.setTimeout(() => setHandoffCopied(false), 1800)
+    } catch (err: unknown) {
+      setHandoffError(errorMessage(err))
+    } finally {
+      setHandoffCopying(false)
+    }
+  }
+
+  const handleSaveHandoff = async () => {
+    if (!editing) return
+    setHandoffSaving(true)
+    try {
+      const result = await saveTaskHandoffSnapshot(editing.id, { prepareWorkspace: true })
+      setHandoffSavedPath(result.files.markdownPath)
+      setHandoffError(null)
+    } catch (err: unknown) {
+      setHandoffError(errorMessage(err))
+    } finally {
+      setHandoffSaving(false)
+    }
+  }
+
   const handleUnarchive = async () => {
     if (editing) {
       await updateTaskMutation.mutateAsync({ id: editing.id, patch: { status: 'backlog' } })
@@ -353,6 +401,48 @@ export function TaskSheet() {
       ? editing.runtimeServices
       : editing.executionWorkspace?.runtimeServices || [])
     : []
+  const handoffUrl = editing
+    ? `/api/tasks/${encodeURIComponent(editing.id)}/handoff?format=markdown`
+    : ''
+  const handoffControls = editing ? (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={handleCopyHandoff}
+          disabled={handoffCopying}
+          className="inline-flex items-center gap-2 rounded-[10px] border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-[12px] font-600 text-text-2 hover:bg-white/[0.08] disabled:opacity-50"
+          style={{ fontFamily: 'inherit' }}
+        >
+          <ClipboardCopy size={13} />
+          {handoffCopied ? 'Copied' : handoffCopying ? 'Copying...' : 'Copy Handoff'}
+        </button>
+        <a
+          href={handoffUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-2 rounded-[10px] border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-[12px] font-600 text-text-2 hover:bg-white/[0.08]"
+        >
+          <FileText size={13} />
+          Open Packet
+        </a>
+        <button
+          onClick={handleSaveHandoff}
+          disabled={handoffSaving}
+          className="inline-flex items-center gap-2 rounded-[10px] border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-[12px] font-600 text-text-2 hover:bg-white/[0.08] disabled:opacity-50"
+          style={{ fontFamily: 'inherit' }}
+        >
+          <Save size={13} />
+          {handoffSaving ? 'Saving...' : 'Save Packet'}
+        </button>
+      </div>
+      {handoffSavedPath && (
+        <code className="block text-[11px] text-text-3 font-mono break-all">{handoffSavedPath}</code>
+      )}
+      {handoffError && (
+        <p className="text-[12px] font-600 text-red-400">{handoffError}</p>
+      )}
+    </div>
+  ) : null
 
   /* ───── View-only mode ───── */
   if (viewOnly && editing) {
@@ -503,6 +593,7 @@ export function TaskSheet() {
                 ))}
               </div>
             )}
+            {handoffControls}
             {!editing.executionWorkspace && (
               <button
                 onClick={handlePrepareWorkspace}
@@ -1008,6 +1099,7 @@ export function TaskSheet() {
                 ))}
               </div>
             )}
+            {handoffControls}
             <button
               onClick={handlePrepareWorkspace}
               disabled={workspacePreparing}

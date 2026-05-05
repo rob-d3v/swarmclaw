@@ -15,6 +15,9 @@ const originalEnv = {
 
 let tempDir = ''
 let putTask: typeof import('./[id]/route')['PUT']
+let getTaskHandoff: typeof import('./[id]/handoff/route')['GET']
+let postTaskHandoff: typeof import('./[id]/handoff/route')['POST']
+let getTaskHandoffs: typeof import('./handoffs/route')['GET']
 let getTasks: typeof import('./route')['GET']
 let storage: typeof import('@/lib/server/storage')
 
@@ -46,6 +49,10 @@ before(async () => {
   process.env.SWARMCLAW_DAEMON_AUTOSTART = '0'
   storage = await import('@/lib/server/storage')
   putTask = (await import('./[id]/route')).PUT
+  const handoffRoute = await import('./[id]/handoff/route')
+  getTaskHandoff = handoffRoute.GET
+  postTaskHandoff = handoffRoute.POST
+  getTaskHandoffs = (await import('./handoffs/route')).GET
   getTasks = (await import('./route')).GET
 })
 
@@ -113,4 +120,95 @@ test('GET /api/tasks returns computed blocked liveness without persisting a task
   const body = await response.json() as Record<string, BoardTask>
   assert.equal(body['task-blocked']?.liveness?.state, 'blocked')
   assert.deepEqual(body['task-blocked']?.liveness?.blockerTaskIds, ['dep-route'])
+})
+
+test('GET /api/tasks/:id/handoff returns readiness and markdown packets', async () => {
+  seedTask('task-handoff', {
+    title: 'Handoff Route Task',
+    description: 'Prepare a packet.',
+    blockedBy: ['dep-handoff'],
+    qualityGate: {
+      enabled: true,
+      minResultChars: 50,
+      minEvidenceItems: 1,
+    },
+  })
+  const tasks = storage.loadTasks()
+  tasks['dep-handoff'] = {
+    id: 'dep-handoff',
+    title: 'Dependency',
+    description: '',
+    status: 'running',
+    agentId: 'agent-1',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  } as BoardTask
+  storage.saveTasks(tasks)
+
+  const jsonResponse = await getTaskHandoff(
+    new Request('http://local/api/tasks/task-handoff/handoff'),
+    routeParams('task-handoff'),
+  )
+  assert.equal(jsonResponse.status, 200)
+  const packet = await jsonResponse.json()
+  assert.equal(packet.taskId, 'task-handoff')
+  assert.equal(packet.readiness.status, 'blocked')
+  assert.equal(packet.dependencies.blockedBy[0]?.id, 'dep-handoff')
+
+  const markdownResponse = await getTaskHandoff(
+    new Request('http://local/api/tasks/task-handoff/handoff?format=markdown'),
+    routeParams('task-handoff'),
+  )
+  assert.equal(markdownResponse.status, 200)
+  assert.match(markdownResponse.headers.get('content-type') || '', /text\/markdown/)
+  const markdown = await markdownResponse.text()
+  assert.match(markdown, /# Task Handoff: Handoff Route Task/)
+  assert.match(markdown, /Readiness: blocked/)
+})
+
+test('POST /api/tasks/:id/handoff saves markdown and JSON snapshots into the workspace', async () => {
+  seedTask('task-handoff-save', {
+    title: 'Saved Handoff Task',
+    cwd: '/source/repo',
+    result: 'Ready for the next operator.',
+  })
+
+  const response = await postTaskHandoff(
+    new Request('http://local/api/tasks/task-handoff-save/handoff', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ prepareWorkspace: true }),
+    }),
+    routeParams('task-handoff-save'),
+  )
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.packet.taskId, 'task-handoff-save')
+  assert.equal(fs.existsSync(body.files.markdownPath), true)
+  assert.equal(fs.existsSync(body.files.jsonPath), true)
+  assert.match(fs.readFileSync(body.files.markdownPath, 'utf8'), /# Task Handoff: Saved Handoff Task/)
+})
+
+test('GET /api/tasks/handoffs lists board-level readiness packets with counts', async () => {
+  seedTask('task-ready', {
+    title: 'Ready Task',
+    executionWorkspace: {
+      path: '/tmp/ready',
+      mode: 'task',
+      preparedAt: Date.now(),
+      previewLinks: [],
+      runtimeServices: [],
+    },
+  })
+  seedTask('task-needs-attention', {
+    title: 'Needs Workspace',
+  })
+
+  const response = await getTaskHandoffs(new Request('http://local/api/tasks/handoffs?status=needs_attention&limit=10'))
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.counts.ready >= 1, true)
+  assert.equal(body.counts.needs_attention >= 1, true)
+  assert.equal(body.items.every((packet: { readiness: { status: string } }) => packet.readiness.status === 'needs_attention'), true)
 })

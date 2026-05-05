@@ -399,6 +399,15 @@ Operational docs: https://swarmclaw.ai/docs/observability
 
 ## Releases
 
+### v1.9.10 Highlights
+
+Task handoff release: operators can package task state, readiness, workspace context, dependencies, outputs, and resume handles into a shareable packet before continuing work.
+
+- **Task handoff packets.** `GET /api/tasks/:id/handoff` returns a structured packet with owner, liveness, workspace, runtime links, dependencies, quality checks, outputs, run summary, and recommended actions.
+- **Workspace snapshots.** `POST /api/tasks/:id/handoff` prepares a workspace when needed and writes `handoff.md` plus `handoff.json` beside the task context files.
+- **Board-level triage.** `GET /api/tasks/handoffs` lists readiness packets with ready, needs-attention, and blocked counts so operators can scan handoff risk across the board.
+- **CLI and UI access.** `swarmclaw tasks handoff`, `swarmclaw tasks handoff-save`, and `swarmclaw tasks handoffs` expose the workflow for scripts, while the task sheet can copy, open, or save packets.
+
 ### v1.9.9 Highlights
 
 Schedule revision timeline release: schedule edits, lifecycle changes, and run evidence now stay inspectable from UI, API, and CLI surfaces.

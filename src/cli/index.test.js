@@ -163,6 +163,38 @@ test('runCli sends authenticated request and emits compact JSON when --json is s
   assert.equal(stderr.toString(), '')
 })
 
+test('tasks handoff command can request markdown packets', async () => {
+  const stdout = makeWritable()
+  const stderr = makeWritable()
+  const calls = []
+
+  const fetchImpl = async (url, init) => {
+    calls.push({ url: String(url), init })
+    return new Response('# Task Handoff\n', {
+      status: 200,
+      headers: { 'content-type': 'text/markdown; charset=utf-8' },
+    })
+  }
+
+  const exitCode = await runCli(
+    ['tasks', 'handoff', 'task-1', '--query', 'format=markdown'],
+    {
+      fetchImpl,
+      stdout,
+      stderr,
+      env: {},
+      cwd: process.cwd(),
+    }
+  )
+
+  assert.equal(exitCode, 0)
+  assert.equal(calls.length, 1)
+  assert.match(calls[0].url, /\/api\/tasks\/task-1\/handoff\?format=markdown$/)
+  assert.equal(calls[0].init.method, 'GET')
+  assert.equal(stdout.toString(), '# Task Handoff\n')
+  assert.equal(stderr.toString(), '')
+})
+
 test('openclaw deploy bundle command merges action with provided JSON body', async () => {
   const stdout = makeWritable()
   const stderr = makeWritable()
