@@ -582,6 +582,7 @@ const COMMAND_GROUPS = [
       cmd('list', 'GET', '/schedules', 'List schedules'),
       cmd('get', 'GET', '/schedules/:id', 'Get schedule by id'),
       cmd('history', 'GET', '/schedules/:id/history', 'Get schedule revision history'),
+      cmd('preview', 'POST', '/schedules/preview', 'Preview schedule timing and validation', { expectsJsonBody: true }),
       cmd('create', 'POST', '/schedules', 'Create schedule', { expectsJsonBody: true }),
       cmd('update', 'PUT', '/schedules/:id', 'Update schedule', { expectsJsonBody: true }),
       cmd('delete', 'DELETE', '/schedules/:id', 'Delete schedule'),

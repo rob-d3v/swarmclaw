@@ -59,7 +59,8 @@ function badgeClass(status: string): string {
 
 function formatScheduleCadence(schedule: Schedule): string {
   if (schedule.scheduleType === 'cron' && schedule.cron) {
-    return cronToHuman(schedule.cron)
+    const timezone = schedule.timezone ? ` (${schedule.timezone})` : ''
+    return `${cronToHuman(schedule.cron)}${timezone}`
   }
   if (schedule.scheduleType === 'interval' && schedule.intervalMs) {
     const minutes = Math.round(schedule.intervalMs / 60_000)

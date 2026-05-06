@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useAppStore } from '@/stores/use-app-store'
-import { createSchedule, updateSchedule, deleteSchedule } from '@/lib/schedules/schedules'
+import { createSchedule, updateSchedule, deleteSchedule, previewSchedule } from '@/lib/schedules/schedules'
 import { BottomSheet } from '@/components/shared/bottom-sheet'
 import { AgentPickerList } from '@/components/shared/agent-picker-list'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { inputClass } from '@/components/shared/form-styles'
 import { AgentAvatar } from '@/components/agents/agent-avatar'
-import type { ScheduleTaskMode, ScheduleType, ScheduleStatus } from '@/types'
+import type { Schedule, SchedulePreviewResponse, ScheduleTaskMode, ScheduleType, ScheduleStatus } from '@/types'
 import cronstrue from 'cronstrue'
 import { SectionLabel } from '@/components/shared/section-label'
 import { SCHEDULE_TEMPLATES, type ScheduleTemplate } from '@/lib/schedules/schedule-templates'
@@ -32,31 +32,12 @@ const CRON_PRESETS = [
   { label: 'Weekly Mon 9am', cron: '0 9 * * 1' },
 ]
 
-async function getNextRunsAsync(cron: string, count: number = 3): Promise<Date[]> {
-  try {
-    const { CronExpressionParser } = await import('cron-parser')
-    const interval = CronExpressionParser.parse(cron)
-    const runs: Date[] = []
-    for (let i = 0; i < count; i++) {
-      runs.push(interval.next().toDate())
-    }
-    return runs
-  } catch {
-    return []
-  }
-}
-
 function formatCronHuman(cron: string): string {
   try {
     return cronstrue.toString(cron, { use24HourTimeFormat: false })
   } catch {
     return 'Invalid cron expression'
   }
-}
-
-function formatDate(d: Date): string {
-  return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) +
-    ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 const STEPS_CREATE = ['Template', 'What', 'When', 'Review'] as const
@@ -107,6 +88,11 @@ export function ScheduleSheet() {
   const [taskMode, setTaskMode] = useState<ScheduleTaskMode>('task')
   const [message, setMessage] = useState('')
   const [customCron, setCustomCron] = useState(false)
+  const [timezone, setTimezone] = useState('')
+  const [staggerSec, setStaggerSec] = useState(0)
+  const [timingPreview, setTimingPreview] = useState<SchedulePreviewResponse | null>(null)
+  const [timingPreviewLoading, setTimingPreviewLoading] = useState(false)
+  const [timingPreviewError, setTimingPreviewError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -136,6 +122,8 @@ export function ScheduleSheet() {
         setTaskMode(editing.taskMode === 'wake_only' ? 'wake_only' : editing.taskMode === 'protocol' ? 'protocol' : 'task')
         setMessage(editing.message || '')
         setCustomCron(!CRON_PRESETS.some((p) => p.cron === editing.cron))
+        setTimezone(editing.timezone || '')
+        setStaggerSec(editing.staggerSec || 0)
       } else if (templatePrefill) {
         // Opened from a quick-start card with pre-filled values
         setName(templatePrefill.name)
@@ -148,6 +136,10 @@ export function ScheduleSheet() {
         if (templatePrefill.intervalMs) setIntervalMs(templatePrefill.intervalMs)
         setAgentId('')
         setStatus('active')
+        setTaskMode('task')
+        setMessage('')
+        setTimezone('')
+        setStaggerSec(0)
         setStep(1) // Skip template picker, go to "What" step
         setTemplatePrefill(null)
       } else {
@@ -162,26 +154,22 @@ export function ScheduleSheet() {
         setTaskMode('task')
         setMessage('')
         setCustomCron(false)
+        setTimezone('')
+        setStaggerSec(0)
       }
+      setTimingPreview(null)
+      setTimingPreviewError('')
+      setTimingPreviewLoading(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editingId])
 
   const cronHuman = useMemo(() => formatCronHuman(cron), [cron])
-  const [nextRuns, setNextRuns] = useState<Date[]>([])
-  useEffect(() => {
-    getNextRunsAsync(cron).then(setNextRuns)
-  }, [cron])
 
-  const onClose = () => {
-    setConfirmDelete(false)
-    setDeleting(false)
-    setOpen(false)
-    setEditingId(null)
-  }
-
-  const handleSave = async () => {
-    const data = {
+  const buildScheduleData = () => {
+    const trimmedTimezone = timezone.trim()
+    const normalizedStaggerSec = Math.max(0, Math.trunc(staggerSec || 0))
+    return {
       name: name.trim(),
       agentId,
       taskPrompt: taskMode === 'wake_only' ? message : taskPrompt,
@@ -192,8 +180,67 @@ export function ScheduleSheet() {
       cron: scheduleType === 'cron' ? cron : undefined,
       intervalMs: scheduleType === 'interval' ? intervalMs : undefined,
       runAt: scheduleType === 'once' ? Date.now() + intervalMs : undefined,
+      timezone: scheduleType === 'cron' && trimmedTimezone ? trimmedTimezone : undefined,
+      staggerSec: normalizedStaggerSec > 0 ? normalizedStaggerSec : undefined,
       status,
     }
+  }
+
+  useEffect(() => {
+    if (!open || step === templateStep) {
+      setTimingPreview(null)
+      setTimingPreviewError('')
+      setTimingPreviewLoading(false)
+      return
+    }
+
+    const taskText = taskMode === 'wake_only' ? message.trim() : taskPrompt.trim()
+    const hasTiming = scheduleType === 'cron'
+      ? cron.trim().length > 0
+      : intervalMs > 0
+    if (!agentId || !taskText || !hasTiming) {
+      setTimingPreview(null)
+      setTimingPreviewError('')
+      setTimingPreviewLoading(false)
+      return
+    }
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      setTimingPreviewLoading(true)
+      setTimingPreviewError('')
+      previewSchedule(buildScheduleData() as Partial<Schedule>)
+        .then((result) => {
+          if (cancelled) return
+          setTimingPreview(result)
+          setTimingPreviewError(result.ok ? '' : result.error)
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return
+          setTimingPreview(null)
+          setTimingPreviewError(err instanceof Error ? err.message : 'Failed to preview schedule')
+        })
+        .finally(() => {
+          if (!cancelled) setTimingPreviewLoading(false)
+        })
+    }, 300)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, step, templateStep, name, agentId, taskPrompt, taskMode, message, scheduleType, cron, intervalMs, status, timezone, staggerSec])
+
+  const onClose = () => {
+    setConfirmDelete(false)
+    setDeleting(false)
+    setOpen(false)
+    setEditingId(null)
+  }
+
+  const handleSave = async () => {
+    const data = buildScheduleData()
     try {
       if (editing) {
         await updateSchedule(editing.id, data)
@@ -227,10 +274,56 @@ export function ScheduleSheet() {
 
   // Step validation
   const step0Valid = name.trim().length > 0 && agentId.length > 0 && (taskMode === 'wake_only' ? message.trim().length > 0 : taskPrompt.trim().length > 0)
-  const step1Valid = scheduleType === 'cron' ? cron.trim().length > 0 : intervalMs > 0
+  const step1Valid = (scheduleType === 'cron' ? cron.trim().length > 0 : intervalMs > 0) && !timingPreviewError
 
   const selectedAgent = agentId ? agents[agentId] : null
   const creatorAgent = editing?.createdByAgentId ? agents[editing.createdByAgentId] : null
+  const previewOk = timingPreview && timingPreview.ok ? timingPreview : null
+
+  const timingPreviewPanel = (
+    <div className="p-4 rounded-[14px] bg-surface border border-white/[0.06]">
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <div className="text-[14px] text-text-2 font-600">
+          {scheduleType === 'cron' ? cronHuman : previewOk?.cadence || (scheduleType === 'once' ? 'Run once' : `Every ${Math.round(intervalMs / 60000)} minutes`)}
+        </div>
+        {previewOk?.timezone && (
+          <span className="rounded-[999px] bg-white/[0.05] px-2 py-0.5 text-[11px] font-600 text-text-3">
+            {previewOk.timezone}
+          </span>
+        )}
+      </div>
+      {scheduleType === 'cron' && cron && (
+        <div className="font-mono text-[12px] text-text-3/50 mb-3">{cron}</div>
+      )}
+      {timingPreviewLoading && (
+        <div className="text-[12px] text-text-3">Checking schedule...</div>
+      )}
+      {timingPreviewError && (
+        <div className="text-[12px] text-red-400">{timingPreviewError}</div>
+      )}
+      {previewOk && !timingPreviewLoading && (
+        <>
+          {previewOk.nextRuns.length > 0 ? (
+            <div className="space-y-1.5">
+              <div className="text-[11px] text-text-3/60 uppercase tracking-wider font-600">Next runs</div>
+              {previewOk.nextRuns.map((run) => (
+                <div key={run.iso} className="text-[12px] text-text-3 font-mono">{run.label}</div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-[12px] text-text-3">No future runs calculated.</div>
+          )}
+          {previewOk.warnings.length > 0 && (
+            <div className="mt-3 space-y-1.5">
+              {previewOk.warnings.map((warning) => (
+                <div key={warning} className="text-[12px] text-amber-300">{warning}</div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
 
   return (
     <BottomSheet open={open} onClose={onClose} wide>
@@ -501,21 +594,32 @@ export function ScheduleSheet() {
                 <input type="text" value={cron} onChange={(e) => setCron(e.target.value)} placeholder="0 * * * *" className={`${inputClass} font-mono text-[14px] mb-3`} />
               )}
 
-              {/* Human-readable preview */}
-              <div className="p-4 rounded-[14px] bg-surface border border-white/[0.06]">
-                <div className="text-[14px] text-text-2 font-600 mb-2">{cronHuman}</div>
-                {cron && (
-                  <div className="font-mono text-[12px] text-text-3/50 mb-3">{cron}</div>
-                )}
-                {nextRuns.length > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="text-[11px] text-text-3/60 uppercase tracking-wider font-600">Next runs</div>
-                    {nextRuns.map((d, i) => (
-                      <div key={i} className="text-[12px] text-text-3 font-mono">{formatDate(d)}</div>
-                    ))}
-                  </div>
-                )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <div>
+                  <SectionLabel>Timezone</SectionLabel>
+                  <input
+                    type="text"
+                    value={timezone}
+                    onChange={(e) => setTimezone(e.target.value)}
+                    placeholder="UTC or America/New_York"
+                    className={inputClass}
+                    style={{ fontFamily: 'inherit' }}
+                  />
+                </div>
+                <div>
+                  <SectionLabel>Stagger (seconds)</SectionLabel>
+                  <input
+                    type="number"
+                    min={0}
+                    value={staggerSec}
+                    onChange={(e) => setStaggerSec(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                    className={inputClass}
+                    style={{ fontFamily: 'inherit' }}
+                  />
+                </div>
               </div>
+
+              {timingPreviewPanel}
             </div>
           )}
 
@@ -529,6 +633,34 @@ export function ScheduleSheet() {
                 className={inputClass}
                 style={{ fontFamily: 'inherit' }}
               />
+              <div className="mt-3 mb-3">
+                <SectionLabel>Stagger (seconds)</SectionLabel>
+                <input
+                  type="number"
+                  min={0}
+                  value={staggerSec}
+                  onChange={(e) => setStaggerSec(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                  className={inputClass}
+                  style={{ fontFamily: 'inherit' }}
+                />
+              </div>
+              {timingPreviewPanel}
+            </div>
+          )}
+
+          {scheduleType === 'once' && (
+            <div className="mb-8">
+              <SectionLabel>Run After (minutes)</SectionLabel>
+              <input
+                type="number"
+                value={Math.round(intervalMs / 60000)}
+                onChange={(e) => setIntervalMs(Math.max(1, parseInt(e.target.value) || 1) * 60000)}
+                className={inputClass}
+                style={{ fontFamily: 'inherit' }}
+              />
+              <div className="mt-3">
+                {timingPreviewPanel}
+              </div>
             </div>
           )}
 
@@ -619,6 +751,15 @@ export function ScheduleSheet() {
               )}
               {scheduleType === 'once' && (
                 <div className="text-[12px] text-text-3 font-mono mt-0.5">Run once</div>
+              )}
+              {scheduleType === 'cron' && timezone.trim() && (
+                <div className="text-[12px] text-text-3 mt-1">Timezone: {timezone.trim()}</div>
+              )}
+              {staggerSec > 0 && (
+                <div className="text-[12px] text-text-3 mt-1">Stagger: up to {staggerSec} seconds</div>
+              )}
+              {previewOk?.nextRuns[0] && (
+                <div className="text-[12px] text-text-3 mt-1">Next: {previewOk.nextRuns[0].label}</div>
               )}
             </div>
             {editing && (

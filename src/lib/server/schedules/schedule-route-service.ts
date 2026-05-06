@@ -19,7 +19,8 @@ import { pushMainLoopEventToMainSessions } from '@/lib/server/agents/main-agent-
 import { WORKSPACE_DIR } from '@/lib/server/data-dir'
 import { notify } from '@/lib/server/ws-hub'
 import { appendScheduleHistoryEntry } from '@/lib/server/schedules/schedule-history'
-import type { Schedule } from '@/types'
+import { previewSchedulePayload } from '@/lib/server/schedules/schedule-preview'
+import type { Schedule, SchedulePreviewResponse } from '@/types'
 import type { ScheduleLike } from '@/lib/schedules/schedule-dedupe'
 import type { ServiceResult } from '@/lib/server/service-result'
 
@@ -37,6 +38,29 @@ export function listSchedulesForApi(includeArchived: boolean) {
     filtered[id] = schedule
   }
   return filtered
+}
+
+export function previewScheduleFromRoute(body: Record<string, unknown>): ServiceResult<SchedulePreviewResponse> {
+  const result = previewSchedulePayload(body, {
+    cwd: WORKSPACE_DIR,
+    now: Date.now(),
+  })
+  if (!result.ok) return serviceFail(400, result.error)
+
+  const agents = loadAgents()
+  const agentId = typeof result.normalized.agentId === 'string' ? result.normalized.agentId : ''
+  const agent = agentId ? agents[agentId] : null
+  const warnings = [...result.warnings]
+  if (agentId && !agent) {
+    warnings.push(`Agent not found: ${agentId}`)
+  } else if (agent && isAgentDisabled(agent)) {
+    warnings.push(buildAgentDisabledMessage(agent, 'take scheduled work'))
+  }
+
+  return serviceOk({
+    ...result,
+    warnings,
+  })
 }
 
 export function createScheduleFromRoute(body: Record<string, unknown>): ServiceResult<ScheduleLike> {

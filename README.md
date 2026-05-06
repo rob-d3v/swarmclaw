@@ -407,6 +407,24 @@ Operational docs: https://swarmclaw.ai/docs/observability
 
 ## Releases
 
+### v1.9.18 Highlights
+
+Schedule preflight release: schedules now show server-backed timing forecasts before save, with timezone-aware cron previews and warnings for risky drafts.
+
+- **Schedule preview API.** `POST /api/schedules/preview` validates a draft schedule through the same normalization path as saved schedules and returns the next calculated runs.
+- **Timezone-aware schedule sheet.** Cron schedules can set an explicit timezone, preview the next runs from the server, and see warnings before saving.
+- **Stagger and one-shot controls.** Operators can add a stagger window to recurring schedules and choose a run-once delay from the schedule workflow.
+- **CLI access.** `swarmclaw schedules preview --data '{...}'` exposes the same forecast for scripts and release automation.
+
+### v1.9.17 Highlights
+
+Agent configuration history release: SwarmClaw now surfaces saved agent versions directly in the agent editor, giving operators a fast rollback path for agent settings.
+
+- **Agent sheet history.** Advanced settings list recent saved versions with relative time, actor, and provider/model snapshot.
+- **One-click restore.** Operators can restore a prior agent configuration through the existing version-restore API without leaving the agent workflow.
+- **Stale-form protection.** Successful restore reloads agent state and closes the sheet so operators reopen the refreshed record.
+- **Regression coverage.** New tests cover config-version list/restore routes and summary formatting.
+
 ### v1.9.16 Highlights
 
 Agent planning controls release: strict planning is now a first-class agent setting instead of a hidden persisted field, so operators can decide which agents must expose machine-readable plans before multi-step work.

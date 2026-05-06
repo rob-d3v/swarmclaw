@@ -1,5 +1,5 @@
 import { api } from '@/lib/app/api-client'
-import type { Schedule, ScheduleHistoryEntry } from '@/types'
+import type { Schedule, ScheduleHistoryEntry, SchedulePreviewResponse } from '@/types'
 
 export interface ScheduleArchiveResponse {
   ok: boolean
@@ -30,6 +30,9 @@ export const fetchSchedules = (includeArchived = false) =>
 
 export const createSchedule = (data: Omit<Schedule, 'id' | 'createdAt' | 'lastRunAt' | 'nextRunAt'>) =>
   api<Schedule>('POST', '/schedules', data)
+
+export const previewSchedule = (data: Partial<Schedule>) =>
+  api<SchedulePreviewResponse>('POST', '/schedules/preview', data, { timeoutMs: 8_000 })
 
 export const updateSchedule = (id: string, data: Partial<Schedule>) =>
   api<Schedule>('PUT', `/schedules/${id}`, data)

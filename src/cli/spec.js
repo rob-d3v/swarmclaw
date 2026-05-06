@@ -418,6 +418,7 @@ const COMMAND_GROUPS = {
     description: 'Scheduled task automation',
     commands: {
       list: { description: 'List schedules', method: 'GET', path: '/schedules' },
+      preview: { description: 'Preview schedule timing and validation', method: 'POST', path: '/schedules/preview' },
       create: { description: 'Create schedule', method: 'POST', path: '/schedules' },
       get: { description: 'Get schedule by id (from list)', virtualGet: true, collectionPath: '/schedules', params: ['id'] },
       history: { description: 'Get schedule revision history', method: 'GET', path: '/schedules/:id/history', params: ['id'] },

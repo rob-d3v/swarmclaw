@@ -82,3 +82,26 @@ export interface Schedule {
   createdAt: number
   updatedAt?: number
 }
+
+export interface SchedulePreviewRun {
+  at: number
+  iso: string
+  label: string
+}
+
+export type SchedulePreviewResponse =
+  | {
+      ok: true
+      scheduleType: ScheduleType
+      cadence: string
+      timezone: string | null
+      nextRunAt: number | null
+      nextRuns: SchedulePreviewRun[]
+      warnings: string[]
+      normalized: Partial<Schedule> & Record<string, unknown>
+    }
+  | {
+      ok: false
+      error: string
+      warnings?: string[]
+    }

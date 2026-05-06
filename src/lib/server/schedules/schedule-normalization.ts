@@ -51,6 +51,15 @@ function normalizeScheduleTimestamp(value: unknown): number | null {
   return Math.trunc(parsedTime)
 }
 
+function isValidTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value })
+    return true
+  } catch {
+    return false
+  }
+}
+
 /**
  * Parse natural "at HH:MM" time expressions into a cron string.
  * Supports: "at 09:00", "at 14:30", "at 9am", "at 2:30pm", "daily at 09:00"
@@ -226,7 +235,14 @@ export function normalizeSchedulePayload(payload: SchedulePayload, opts: Normali
 
   // Preserve timezone and stagger
   const timezone = trimString(normalized.timezone)
-  if (timezone) normalized.timezone = timezone
+  if (timezone) {
+    if (!isValidTimeZone(timezone)) {
+      return { ok: false, error: `Error: invalid timezone: ${timezone}.` }
+    }
+    normalized.timezone = timezone
+  } else if (normalized.timezone != null) {
+    delete normalized.timezone
+  }
   const staggerSec = normalizePositiveInt(normalized.staggerSec)
   if (staggerSec != null) normalized.staggerSec = staggerSec
   else if (normalized.staggerSec != null) delete normalized.staggerSec
