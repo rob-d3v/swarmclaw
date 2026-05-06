@@ -572,6 +572,7 @@ const COMMAND_GROUPS = [
       cmd('get', 'GET', '/runs/:id', 'Get run by id'),
       cmd('events', 'GET', '/runs/:id/events', 'Get run event history by run id'),
       cmd('brief', 'GET', '/runs/:id/brief', 'Get deterministic run brief by run id'),
+      cmd('handoff', 'GET', '/runs/:id/handoff', 'Get run handoff packet by run id'),
     ],
   },
   {

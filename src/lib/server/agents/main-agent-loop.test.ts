@@ -307,7 +307,7 @@ describe('main-agent-loop', () => {
           agentId: 'agent-a',
           taskIds: [],
           currentStep: 'Verify the release checklist',
-          plannerSummary: 'Use the mission controller instead of legacy tags.',
+          plannerSummary: 'Use the mission runtime instead of legacy tags.',
           verifierSummary: null,
           blockerSummary: null,
           waitState: null,

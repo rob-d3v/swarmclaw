@@ -552,6 +552,7 @@ const COMMAND_GROUPS = {
       get: { description: 'Get run by id', method: 'GET', path: '/runs/:id', params: ['id'] },
       events: { description: 'Get run event history by run id', method: 'GET', path: '/runs/:id/events', params: ['id'] },
       brief: { description: 'Get deterministic run brief by run id', method: 'GET', path: '/runs/:id/brief', params: ['id'] },
+      handoff: { description: 'Get run handoff packet by run id', method: 'GET', path: '/runs/:id/handoff', params: ['id'] },
     },
   },
   webhooks: {

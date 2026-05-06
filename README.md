@@ -399,6 +399,15 @@ Operational docs: https://swarmclaw.ai/docs/observability
 
 ## Releases
 
+### v1.9.15 Highlights
+
+Run handoff release: SwarmClaw now turns completed, failed, queued, or running execution records into copyable handoff packets with outcome, evidence, artifacts, timeline, usage, resume commands, and recommended next actions.
+
+- **Run handoff API.** `GET /api/runs/:id/handoff` returns structured handoff JSON, and `?format=markdown` returns copyable markdown.
+- **Run Review copy action.** The run detail sheet exposes a copy handoff button so operators can move outcome evidence into another session without replaying the full event log.
+- **CLI access.** `swarmclaw runs handoff <runId> --query format=markdown` exposes the same packet for scripts and release automation.
+- **Readiness guidance.** Packets mark failed, cancelled, running, warning, or under-evidenced runs as blocked or needing attention before another operator relies on the result.
+
 ### v1.9.14 Highlights
 
 Session context-pack release: SwarmClaw now turns a live chat into a concise handoff packet with session metadata, recent visible turns, linked tasks, attachments, resume handles, and next actions.

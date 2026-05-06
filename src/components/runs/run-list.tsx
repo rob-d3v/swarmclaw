@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
+import { ClipboardList } from 'lucide-react'
 import { api } from '@/lib/app/api-client'
 import { useNow } from '@/hooks/use-now'
 import { useWs } from '@/hooks/use-ws'
@@ -10,6 +11,7 @@ import type { EvidenceArtifact, RunBrief, RunEventRecord, SessionRunRecord, Sess
 import { PageLoader } from '@/components/ui/page-loader'
 import { formatElapsed } from '@/lib/format-display'
 import { GroundingPanel } from '@/components/knowledge/grounding-panel'
+import { copyTextToClipboard } from '@/lib/clipboard'
 
 const STATUS_COLORS: Record<SessionRunStatus, { bg: string; text: string }> = {
   queued: { bg: 'bg-yellow-500/10', text: 'text-yellow-400' },
@@ -47,6 +49,9 @@ export function RunList() {
   const [eventsLoading, setEventsLoading] = useState(false)
   const [briefLoading, setBriefLoading] = useState(false)
   const [artifactsLoading, setArtifactsLoading] = useState(false)
+  const [handoffCopying, setHandoffCopying] = useState(false)
+  const [handoffCopied, setHandoffCopied] = useState(false)
+  const [handoffError, setHandoffError] = useState<string | null>(null)
 
   const fetchRuns = useCallback(async () => {
     try {
@@ -57,7 +62,6 @@ export function RunList() {
   }, [])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRuns()
   }, [fetchRuns])
 
@@ -102,7 +106,29 @@ export function RunList() {
     setEventsLoading(true)
     setBriefLoading(true)
     setArtifactsLoading(true)
+    setHandoffCopied(false)
+    setHandoffError(null)
   }, [])
+
+  const copyRunHandoff = useCallback(async () => {
+    if (!selected || handoffCopying) return
+    setHandoffCopying(true)
+    setHandoffError(null)
+    try {
+      const markdown = await api<string>('GET', `/runs/${selected.id}/handoff?format=markdown`)
+      const copied = await copyTextToClipboard(markdown)
+      if (!copied) {
+        setHandoffError('Clipboard unavailable.')
+        return
+      }
+      setHandoffCopied(true)
+      setTimeout(() => setHandoffCopied(false), 2000)
+    } catch {
+      setHandoffError('Could not copy handoff.')
+    } finally {
+      setHandoffCopying(false)
+    }
+  }, [handoffCopying, selected])
 
   const sources = useMemo(() => {
     return Array.from(new Set(runs.map((run) => run.source).filter(Boolean))).sort((a, b) => a.localeCompare(b))
@@ -248,12 +274,24 @@ export function RunList() {
         {selected && (
           <div style={{ animation: 'fade-in 0.3s ease' }}>
             <div className="mb-6">
-              <div className="flex items-center gap-3 mb-3">
-                <span className={`text-[11px] font-700 uppercase tracking-wider px-2.5 py-1 rounded-[6px] ${STATUS_COLORS[selected.status].bg} ${STATUS_COLORS[selected.status].text}`}>
-                  {selected.status}
-                </span>
-                <span className="text-[12px] font-mono text-text-3/60">{selected.source}</span>
+              <div className="mb-3 flex flex-wrap items-center gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className={`text-[11px] font-700 uppercase tracking-wider px-2.5 py-1 rounded-[6px] ${STATUS_COLORS[selected.status].bg} ${STATUS_COLORS[selected.status].text}`}>
+                    {selected.status}
+                  </span>
+                  <span className="text-[12px] font-mono text-text-3/60">{selected.source}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={copyRunHandoff}
+                  disabled={handoffCopying}
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-[8px] border border-white/[0.07] bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-700 text-text-2 transition-colors hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <ClipboardList size={13} />
+                  {handoffCopied ? 'Copied' : handoffCopying ? 'Copying...' : 'Copy Handoff'}
+                </button>
               </div>
+              {handoffError && <p className="mb-3 text-[11px] font-600 text-red-400">{handoffError}</p>}
               <h2 className="font-display text-[20px] font-700 tracking-[-0.02em] mb-2 leading-snug">
                 Run Details
               </h2>
