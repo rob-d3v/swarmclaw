@@ -101,6 +101,27 @@ test('POST /api/agents accepts a valid provider and creates the agent', async ()
   saveAgents(agents)
 })
 
+test('POST /api/agents persists strict planning mode for created agents', async () => {
+  const response = await createAgent(new Request('http://local/api/agents', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Planning Agent',
+      provider: 'ollama',
+      model: 'qwen3.5',
+      planningMode: 'strict',
+    }),
+  }))
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.planningMode, 'strict')
+
+  const agents = loadAgents()
+  delete agents[body.id]
+  saveAgents(agents)
+})
+
 test('POST /api/agents rejects missing required fields with a 400', async () => {
   const response = await createAgent(new Request('http://local/api/agents', {
     method: 'POST',
@@ -160,6 +181,28 @@ test('PUT /api/agents/:id does not clobber untouched fields with schema defaults
   assert.equal(body.delegationEnabled, true)
   assert.equal(body.delegationTargetMode, 'selected')
   assert.equal(body.heartbeatEnabled, false)
+  assert.equal(body.proactiveMemory, false)
+})
+
+test('PUT /api/agents/:id updates planning mode without clobbering other fields', async () => {
+  seedAgent('agent-planning-mode', {
+    name: 'Planner',
+    tools: ['memory'],
+    planningMode: 'off',
+    proactiveMemory: false,
+  })
+
+  const response = await putAgent(new Request('http://local/api/agents/agent-planning-mode', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ planningMode: 'strict' }),
+  }), routeParams('agent-planning-mode'))
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.planningMode, 'strict')
+  assert.equal(body.name, 'Planner')
+  assert.deepEqual(body.tools, ['memory'])
   assert.equal(body.proactiveMemory, false)
 })
 

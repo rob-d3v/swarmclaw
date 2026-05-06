@@ -301,6 +301,7 @@ export interface AgentPackEntry {
   extensions?: string[]
   capabilities?: string[]
   elevenLabsVoiceId?: string | null
+  planningMode?: 'off' | 'strict' | null
   soul?: string
   systemPrompt?: string
 }

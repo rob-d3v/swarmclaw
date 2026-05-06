@@ -26,6 +26,7 @@ import { StatusDot } from '@/components/ui/status-dot'
 import { resolveStoredOllamaMode } from '@/lib/ollama-mode'
 import { errorMessage } from '@/lib/shared-utils'
 import { getDefaultAgentToolIds } from '@/lib/agent-default-tools'
+import { AGENT_PLANNING_MODE_OPTIONS, describeAgentPlanningMode, normalizeAgentPlanningMode, type AgentPlanningMode } from '@/lib/agent-planning-mode'
 import { getEnabledExtensionIds, getEnabledToolIds } from '@/lib/capability-selection'
 import { buildAgentSelectableProviders, resolveAgentSelectableProviderCredentials } from '@/lib/agent-provider-options'
 import { AgentSocialSettings } from '@/features/swarmfeed/agent-social-settings'
@@ -238,6 +239,7 @@ export function AgentSheet() {
   const [memoryTierPreference, setMemoryTierPreference] = useState<'working' | 'durable' | 'archive' | 'blended'>('blended')
   const [proactiveMemory, setProactiveMemory] = useState(true)
   const [autoDraftSkillSuggestions, setAutoDraftSkillSuggestions] = useState(true)
+  const [planningMode, setPlanningMode] = useState<AgentPlanningMode>('off')
   const [autoRecovery, setAutoRecovery] = useState(false)
   const [disabled, setDisabled] = useState(false)
   const [filesystemScope, setFilesystemScope] = useState<'workspace' | 'machine'>('workspace')
@@ -444,6 +446,7 @@ export function AgentSheet() {
         setMemoryTierPreference(editing.memoryTierPreference || 'blended')
         setProactiveMemory(editing.proactiveMemory !== false)
         setAutoDraftSkillSuggestions(editing.autoDraftSkillSuggestions !== false)
+        setPlanningMode(normalizeAgentPlanningMode(editing.planningMode))
         setAutoRecovery(editing.autoRecovery || false)
         setDisabled(editing.disabled === true)
         setFilesystemScope(editing.filesystemScope === 'machine' ? 'machine' : 'workspace')
@@ -527,6 +530,7 @@ export function AgentSheet() {
         setMemoryTierPreference(src.memoryTierPreference || 'blended')
         setProactiveMemory(src.proactiveMemory !== false)
         setAutoDraftSkillSuggestions(src.autoDraftSkillSuggestions !== false)
+        setPlanningMode(normalizeAgentPlanningMode(src.planningMode))
         setAutoRecovery(src.autoRecovery || false)
         setDisabled(false)
         setFilesystemScope(src.filesystemScope === 'machine' ? 'machine' : 'workspace')
@@ -602,6 +606,7 @@ export function AgentSheet() {
         setMemoryTierPreference('blended')
         setProactiveMemory(true)
         setAutoDraftSkillSuggestions(true)
+        setPlanningMode('off')
         setAutoRecovery(false)
         setDisabled(false)
         setVoiceId('')
@@ -809,6 +814,7 @@ export function AgentSheet() {
       memoryTierPreference,
       proactiveMemory,
       autoDraftSkillSuggestions,
+      planningMode,
       autoRecovery,
       disabled,
       filesystemScope: filesystemScope === 'machine' ? 'machine' as const : undefined,
@@ -916,6 +922,7 @@ export function AgentSheet() {
         extensions: getEnabledExtensionIds(editing),
         capabilities: editing.capabilities,
         elevenLabsVoiceId: editing.elevenLabsVoiceId || null,
+        planningMode: normalizeAgentPlanningMode(editing.planningMode),
         soul: editing.soul,
         systemPrompt: editing.systemPrompt,
       }],
@@ -1043,6 +1050,7 @@ export function AgentSheet() {
     if (projectId) badges.push('Project')
     if (thinkingLevel) badges.push('Thinking')
     if (!autoDraftSkillSuggestions) badges.push('Skill drafting')
+    if (planningMode === 'strict') badges.push('Planning')
     return Array.from(new Set(badges))
   }, [
     autoDraftSkillSuggestions,
@@ -1061,6 +1069,7 @@ export function AgentSheet() {
     memoryScopeMode,
     memoryTierPreference,
     proactiveMemory,
+    planningMode,
     projectId,
     routingStrategy,
     routingTargets.length,
@@ -2145,7 +2154,15 @@ export function AgentSheet() {
           <option value="durable">Durable memory</option>
           <option value="archive">Archive memory</option>
         </select>
+        <select value={planningMode} onChange={(e) => setPlanningMode(normalizeAgentPlanningMode(e.target.value))} className={inputClass}>
+          {AGENT_PLANNING_MODE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
       </div>
+      <p className="mb-4 text-[12px] leading-[1.6] text-text-3/70">
+        {describeAgentPlanningMode(planningMode)}
+      </p>
       <div className="space-y-3">
         <label className="flex items-center gap-3 cursor-pointer">
           <div

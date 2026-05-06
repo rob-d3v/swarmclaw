@@ -399,6 +399,15 @@ Operational docs: https://swarmclaw.ai/docs/observability
 
 ## Releases
 
+### v1.9.16 Highlights
+
+Agent planning controls release: strict planning is now a first-class agent setting instead of a hidden persisted field, so operators can decide which agents must expose machine-readable plans before multi-step work.
+
+- **Agent editor control.** Advanced agent settings now include a Standard / Strict planning selector with inline behavior guidance.
+- **Runtime prompt wiring.** Strict planning continues to inject the existing `[MAIN_LOOP_PLAN]` contract before multi-step tool work, and the test suite now keeps that prompt section in the runtime gate.
+- **Portable agent packs.** Agent exports preserve `planningMode`, so planning discipline follows agents across installs.
+- **API coverage.** Agent create and update route tests verify that strict planning persists without clobbering unrelated settings.
+
 ### v1.9.15 Highlights
 
 Run handoff release: SwarmClaw now turns completed, failed, queued, or running execution records into copyable handoff packets with outcome, evidence, artifacts, timeline, usage, resume commands, and recommended next actions.
