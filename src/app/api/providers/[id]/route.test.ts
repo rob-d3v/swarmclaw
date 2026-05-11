@@ -48,7 +48,52 @@ test('provider route upserts builtin override records for enablement changes', (
   assert.equal(output.responsePayload.isEnabled, false)
 })
 
-test('provider route rejects unknown fields per ProviderUpdateSchema.strict()', () => {
+test('provider route ignores frontend metadata fields without persisting them', () => {
+  const output = runWithTempDataDir<{
+    status: number
+    providerConfig: {
+      id: string
+      type: string
+      name: string
+      isEnabled: boolean
+      updatedAt: number
+    }
+  }>(`
+    const storageMod = await import('./src/lib/server/storage')
+    const routeMod = await import('./src/app/api/providers/[id]/route')
+    const storage = storageMod.default || storageMod
+    const route = routeMod.default || routeMod
+
+    const response = await route.PUT(
+      new Request('http://local/api/providers/openai', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          id: 'wrong-id',
+          type: 'custom',
+          createdAt: '123',
+          updatedAt: '456',
+          isEnabled: false,
+        }),
+      }),
+      { params: Promise.resolve({ id: 'openai' }) },
+    )
+
+    console.log(JSON.stringify({
+      status: response.status,
+      providerConfig: storage.loadProviderConfigs().openai,
+    }))
+  `, { prefix: 'swarmclaw-provider-route-strict-test-' })
+
+  assert.equal(output.status, 200)
+  assert.equal(output.providerConfig.id, 'openai')
+  assert.equal(output.providerConfig.type, 'builtin')
+  assert.equal(output.providerConfig.name, 'OpenAI')
+  assert.equal(output.providerConfig.isEnabled, false)
+  assert.equal(typeof output.providerConfig.updatedAt, 'number')
+})
+
+test('provider route still rejects unknown non-metadata fields', () => {
   const output = runWithTempDataDir<{ status: number }>(`
     const routeMod = await import('./src/app/api/providers/[id]/route')
     const route = routeMod.default || routeMod
@@ -57,13 +102,13 @@ test('provider route rejects unknown fields per ProviderUpdateSchema.strict()', 
       new Request('http://local/api/providers/openai', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ type: 'builtin', isEnabled: true }),
+        body: JSON.stringify({ unexpectedField: true, isEnabled: true }),
       }),
       { params: Promise.resolve({ id: 'openai' }) },
     )
 
     console.log(JSON.stringify({ status: response.status }))
-  `, { prefix: 'swarmclaw-provider-route-strict-test-' })
+  `, { prefix: 'swarmclaw-provider-route-unknown-field-test-' })
 
   assert.equal(output.status, 400)
 })

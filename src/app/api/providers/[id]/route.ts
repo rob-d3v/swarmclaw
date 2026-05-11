@@ -8,6 +8,7 @@ import { ProviderUpdateSchema, formatZodError } from '@/lib/validation/schemas'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ops: CollectionOps<any> = { load: loadProviderConfigs, save: saveProviderConfigs, topic: 'providers' }
+const PROVIDER_UPDATE_WRITABLE_KEYS = new Set(['name', 'baseUrl', 'models', 'credentialId', 'isEnabled', 'requiresApiKey', 'notes'])
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -27,7 +28,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const rawKeys = new Set(Object.keys(raw ?? {}))
   const body: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(parsed.data)) {
-    if (rawKeys.has(key)) body[key] = value
+    if (rawKeys.has(key) && PROVIDER_UPDATE_WRITABLE_KEYS.has(key)) body[key] = value
   }
 
   if (!ops.load()[id]) {

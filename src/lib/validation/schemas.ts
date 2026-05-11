@@ -320,6 +320,10 @@ export const ProviderUpdateSchema = z.object({
   isEnabled: z.boolean().optional(),
   requiresApiKey: z.boolean().optional(),
   notes: z.string().max(4000).nullable().optional(),
+  id: z.unknown().optional(),
+  type: z.unknown().optional(),
+  createdAt: z.unknown().optional(),
+  updatedAt: z.unknown().optional(),
 }).strict()
 
 /** PUT /documents/:id — note: creating a new revision is a side-effect of

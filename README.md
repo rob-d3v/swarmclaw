@@ -151,14 +151,14 @@ clawhub install swarmclaw
 
 [Browse on ClawHub](https://clawhub.ai/skills/swarmclaw)
 
-## v1.9.26 Highlights
+## v1.9.27 Highlights
 
-Output hygiene follow-up: empty successful LLM turns now stay silent instead of being rewritten as user-visible errors.
+Desktop compatibility and provider-save repair for Intel Mac users and OpenRouter setup.
 
-- **Silent empty completions.** Blank successful runs no longer become `Error: Run completed...` assistant messages.
-- **Connector-safe final text.** Slack and other connectors no longer receive synthetic error text for intentional silence or quiet no-op turns.
-- **Real errors preserved.** Explicit provider failures and streamed provider errors still surface as terminal errors.
-- **Regression coverage.** Chat-execution tests now lock the distinction between empty success and real failure.
+- **Intel macOS native modules.** The desktop packaging hook now rebuilds Electron-loaded native modules with the target architecture and blocks a release if an x64 macOS bundle contains an arm64-only required addon.
+- **OpenRouter save repair.** Provider updates now tolerate UI metadata fields like `id`, `type`, `createdAt`, and `updatedAt` without persisting them, while still rejecting unrelated unknown fields.
+- **Downloads clarity.** The downloads page no longer guesses Apple Silicon when a browser hides the Mac architecture, so Intel users can choose the x64 DMG explicitly.
+- **Regression coverage.** Provider route and Electron after-pack tests cover the reported failure modes.
 
 ## Hosted Deploys
 
@@ -409,6 +409,15 @@ If you need a trace-specific endpoint, set `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` 
 Operational docs: https://swarmclaw.ai/docs/observability
 
 ## Releases
+
+### v1.9.27 Highlights
+
+Desktop compatibility and provider-save repair for Intel Mac users and OpenRouter setup.
+
+- **Intel macOS native modules.** The desktop packaging hook now rebuilds Electron-loaded native modules with the target architecture and blocks a release if an x64 macOS bundle contains an arm64-only required addon.
+- **OpenRouter save repair.** Provider updates now tolerate UI metadata fields like `id`, `type`, `createdAt`, and `updatedAt` without persisting them, while still rejecting unrelated unknown fields.
+- **Downloads clarity.** The downloads page no longer guesses Apple Silicon when a browser hides the Mac architecture, so Intel users can choose the x64 DMG explicitly.
+- **Regression coverage.** Provider route and Electron after-pack tests cover the reported failure modes.
 
 ### v1.9.26 Highlights
 
