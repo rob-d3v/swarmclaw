@@ -151,14 +151,20 @@ clawhub install swarmclaw
 
 [Browse on ClawHub](https://clawhub.ai/skills/swarmclaw)
 
+## v1.9.31 Highlights
+
+Documentation cleanup release for public release notes and OpenClaw guidance. No runtime behavior changed.
+
+- **Public docs cleanup.** Removed an unwanted third-party example from the README and site release notes.
+- **OpenClaw guidance preserved.** The README keeps the SwarmClaw-native OpenClaw gateway, skill, and agent-file guidance without naming unrelated workflows.
+
 ## v1.9.30 Highlights
 
-PR integration release for dream-model routing, email bridge TLS opt-outs, installed CLI runtime resolution, and an OpenClaw plugin workflow example.
+PR integration release for dream-model routing, email bridge TLS opt-outs, and installed CLI runtime resolution.
 
 - **Dream model routing.** Memory dream cycles and daily digests can use optional `dreamProvider` settings so background consolidation can run on a smaller local model.
 - **Email bridge TLS opt-outs.** `tlsRejectUnauthorized=false` now disables hostname checks too, matching the explicit self-signed-server opt-out.
 - **Installed CLI stability.** Legacy API-backed CLI commands import the package-local `tsx` runtime instead of resolving `tsx` from the caller's project.
-- **OpenClaw plugin workflow.** README guidance now includes a concrete TweetClaw plugin workflow for OpenClaw operators.
 
 ## v1.9.29 Highlights
 
@@ -228,7 +234,7 @@ SwarmClaw is built for OpenClaw operators who need more than one agent or one ga
 - Deploy official-image OpenClaw runtimes locally, via VPS bundles, or over SSH.
 - Edit OpenClaw agent files such as `SOUL.md`, `IDENTITY.md`, `USER.md`, `TOOLS.md`, and `AGENTS.md`.
 - Import OpenClaw `SKILL.md` files and use them in SwarmClaw's runtime skill system.
-- Use OpenClaw plugins for domain workflows. For example, `openclaw plugins install @xquik/tweetclaw` installs [TweetClaw](https://github.com/Xquik-dev/tweetclaw) via [ClawHub](https://clawhub.ai/kriptoburak/xquik-tweetclaw) for X/Twitter search, follower export, monitors, webhooks, and approval-gated post/reply actions.
+- Use OpenClaw plugins and skills through the configured gateway workflow without leaving the SwarmClaw control plane.
 
 ## Use Cases
 
@@ -420,14 +426,20 @@ Operational docs: https://swarmclaw.ai/docs/observability
 
 ## Releases
 
+### v1.9.31 Highlights
+
+Documentation cleanup release for public release notes and OpenClaw guidance. No runtime behavior changed.
+
+- **Public docs cleanup.** Removed an unwanted third-party example from the README and site release notes.
+- **OpenClaw guidance preserved.** The README keeps the SwarmClaw-native OpenClaw gateway, skill, and agent-file guidance without naming unrelated workflows.
+
 ### v1.9.30 Highlights
 
-PR integration release for dream-model routing, email bridge TLS opt-outs, installed CLI runtime resolution, and an OpenClaw plugin workflow example.
+PR integration release for dream-model routing, email bridge TLS opt-outs, and installed CLI runtime resolution.
 
 - **Dream model routing.** Memory dream cycles and daily digests can use optional `dreamProvider` settings so background consolidation can run on a smaller local model.
 - **Email bridge TLS opt-outs.** `tlsRejectUnauthorized=false` now disables hostname checks too, matching the explicit self-signed-server opt-out.
 - **Installed CLI stability.** Legacy API-backed CLI commands import the package-local `tsx` runtime instead of resolving `tsx` from the caller's project.
-- **OpenClaw plugin workflow.** README guidance now includes a concrete TweetClaw plugin workflow for OpenClaw operators.
 
 ### v1.9.29 Highlights
 
