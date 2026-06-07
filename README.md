@@ -84,7 +84,7 @@ Available for macOS (Apple Silicon & Intel), Windows, and Linux (AppImage + .deb
 The release workflow supports Developer ID signing and notarization when Apple
 credentials are configured. If a macOS build is still ad-hoc signed, first
 launch may need one manual approval:
-- **macOS:** right-click the app in Finder → **Open** → **Open** to bypass Gatekeeper. If macOS instead reports *"SwarmClaw is damaged and can't be opened"* (common when the dmg was quarantined by Safari), strip the quarantine attribute and relaunch:
+- **macOS:** signed/notarized releases publish both `.dmg` and `.zip`; unsigned fallback releases publish `.zip` only to avoid the damaged unsigned DMG path. Right-click the app in Finder → **Open** → **Open** to bypass Gatekeeper. If macOS instead reports *"SwarmClaw is damaged and can't be opened"* (common when a downloaded app was quarantined by Safari), strip the quarantine attribute and relaunch:
   ```bash
   xattr -dr com.apple.quarantine /Applications/SwarmClaw.app
   ```
