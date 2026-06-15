@@ -111,8 +111,8 @@ deploy + persona/rule seeding in one call.
 FH="Authorization: Bearer $FLEET_CONTROL_KEY"
 U="$FLEET_CONTROL_URL"
 
-# List all Hermes agents + status
-curl -s -H "$FH" "$U/agents" | python3 -m json.tool
+# List all Hermes agents + status (returns JSON — read it directly)
+curl -s -H "$FH" "$U/agents"
 
 # Add an agent (creates OmniRoute key+budget, deploys, seeds SOUL/AGENTS)
 curl -s -H "$FH" -H "$CT" -d '{
@@ -121,7 +121,7 @@ curl -s -H "$FH" -H "$CT" -d '{
   "persona":"Recepcionista simpatica do estudio",
   "budget_usd":20,
   "rag":"fotografo-kb"
-}' "$U/agents" | python3 -m json.tool
+}' "$U/agents"
 # Response includes a dnsAction: add A record <slug>.agents -> 64.181.172.102
 
 # Remove an agent (stop+delete compose, revoke OmniRoute key; DNS left for operator)
