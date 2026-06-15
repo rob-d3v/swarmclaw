@@ -31,8 +31,10 @@ These are provided to the `execute` sandbox as credentials — never hard-code t
 | `FLEET_CONTROL_URL` | Fleet Control API base, e.g. `http://fleet-control-api:8080` |
 | `FLEET_CONTROL_KEY` | Bearer token for the Fleet Control API |
 
-> The `execute` tool must have **network enabled** with these hosts allow-listed,
-> and these credentials attached, or the calls below will fail offline.
+> Run the `execute` tool with the **host** backend. The runtime has real
+> `curl`, `grep`, `sed` but **NO `python3` and NO `jq`** — parse JSON by reading
+> it directly or with `grep -o`. Credentials are pre-injected as the env vars
+> above; never ask for them.
 
 ## Setup helper
 
@@ -42,45 +44,36 @@ B="$DOKPLOY_API_BASE"
 CT="Content-Type: application/json"
 ```
 
-## Resolve a service by name → composeId
+## The fleet as JSON
 
-Services are addressed by `composeId`. Resolve it from the project tree instead of
-hard-coding ids:
-
-```bash
-CID=$(curl -s -H "$H" "$B/project.all" | python3 -c '
-import json,sys
-name=sys.argv[1]
-for p in json.load(sys.stdin):
-  for e in p.get("environments",[]):
-    for c in e.get("compose",[]):
-      if c["name"]==name: print(c["composeId"])
-' "OmniRoute1")
-echo "$CID"
-```
-
-## Status of the whole fleet
+`project.all` returns the whole tree (projects → environments → compose
+services). Read it directly, or pull fields with `grep`:
 
 ```bash
-curl -s -H "$H" "$B/project.all" | python3 -c '
-import json,sys
-for p in json.load(sys.stdin):
-  for e in p.get("environments",[]):
-    for c in e.get("compose",[]):
-      print(c["name"].ljust(18), c.get("composeStatus","?"))'
+# service names:
+curl -s -H "$H" "$B/project.all" | grep -o '"name":"[^"]*"'
+# names + status pairs interleaved:
+curl -s -H "$H" "$B/project.all" | grep -o '"name":"[^"]*"\|"composeStatus":"[^"]*"'
+# raw (just read the JSON yourself):
+curl -s -H "$H" "$B/project.all"
 ```
+
+Each compose object looks like
+`{"composeId":"...","name":"hermes-ania","composeStatus":"running",...}`.
+To act on a service, read its `composeId` from that raw JSON next to the
+matching `"name"`.
 
 ## Inspect one service
 
 ```bash
-curl -s -H "$H" "$B/compose.one?composeId=$CID" | python3 -m json.tool
+curl -s -H "$H" "$B/compose.one?composeId=$CID"
 ```
 
 ## Deploy logs (latest deployment)
 
 ```bash
 DID=$(curl -s -H "$H" "$B/deployment.allByCompose?composeId=$CID" \
-  | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d[0]["deploymentId"] if d else "")')
+  | grep -o '"deploymentId":"[^"]*"' | head -1 | sed 's/.*:"//;s/"$//')
 [ -n "$DID" ] && curl -s -H "$H" "$B/deployment.readLogs?deploymentId=$DID&tail=200"
 ```
 
