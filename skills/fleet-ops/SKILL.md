@@ -28,6 +28,8 @@ These are provided to the `execute` sandbox as credentials — never hard-code t
 | `HERMES_API_SERVER_KEY` | Hermes API auth key (optional) |
 | `OMNIROUTE_API_BASE` | OmniRoute base URL (optional) |
 | `OMNIROUTE_MGMT_KEY` | OmniRoute management key for provisioning (optional) |
+| `FLEET_CONTROL_URL` | Fleet Control API base, e.g. `http://fleet-control-api:8080` |
+| `FLEET_CONTROL_KEY` | Bearer token for the Fleet Control API |
 
 > The `execute` tool must have **network enabled** with these hosts allow-listed,
 > and these credentials attached, or the calls below will fail offline.
@@ -103,6 +105,40 @@ curl -s -H "$H" -H "$CT" \
   "$B/compose.saveEnvironment"
 # then redeploy to apply
 ```
+
+## Add / remove / list Hermes agents (Fleet Control API)
+
+Hermes agents are spun up by a server-side factory exposed at
+`$FLEET_CONTROL_URL` (internal overlay service). Each agent = its own container
+`hermes-<slug>` with an isolated OmniRoute key + budget. Use this instead of
+hand-driving Dokploy for Hermes agents — it does OmniRoute key + compose +
+deploy + persona/rule seeding in one call.
+
+```bash
+FH="Authorization: Bearer $FLEET_CONTROL_KEY"
+U="$FLEET_CONTROL_URL"
+
+# List all Hermes agents + status
+curl -s -H "$FH" "$U/agents" | python3 -m json.tool
+
+# Add an agent (creates OmniRoute key+budget, deploys, seeds SOUL/AGENTS)
+curl -s -H "$FH" -H "$CT" -d '{
+  "slug":"fotografo",
+  "rule":"Atende clientes de estudio de fotografia, faz orcamentos",
+  "persona":"Recepcionista simpatica do estudio",
+  "budget_usd":20,
+  "rag":"fotografo-kb"
+}' "$U/agents" | python3 -m json.tool
+# Response includes a dnsAction: add A record <slug>.agents -> 64.181.172.102
+
+# Remove an agent (stop+delete compose, revoke OmniRoute key; DNS left for operator)
+curl -s -X DELETE -H "$FH" "$U/agents/fotografo"
+```
+
+> Adding an agent returns a `dnsAction` — the new `<slug>.agents.aniamodels.shop`
+> needs an A record to `64.181.172.102` before its gateway URL serves TLS. The
+> operator (human) must add that DNS record; the agent runs regardless on the
+> overlay.
 
 ## Talk to a Hermes agent (if configured)
 
